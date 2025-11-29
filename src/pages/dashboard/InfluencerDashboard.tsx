@@ -1,12 +1,69 @@
 import { useTranslation } from 'react-i18next';
+import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { LanguageSwitcher } from '@/components/LanguageSwitcher';
 import { Wallet, Briefcase, Mail } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { useAuth } from '@/hooks/useAuth';
+import { supabase } from '@/integrations/supabase/client';
+import { toast } from 'sonner';
 
 const InfluencerDashboard = () => {
   const { t } = useTranslation();
+  const { user, signOut } = useAuth();
+  const navigate = useNavigate();
+  const [profile, setProfile] = useState<any>(null);
+  const [offers, setOffers] = useState<any[]>([]);
+  const [stats, setStats] = useState({
+    balance: 0,
+    activeCollaborations: 0,
+    pendingInvitations: 0,
+  });
+
+  useEffect(() => {
+    if (user) {
+      fetchProfile();
+      fetchOffers();
+    }
+  }, [user]);
+
+  const fetchProfile = async () => {
+    const { data } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('id', user?.id)
+      .single();
+    setProfile(data);
+  };
+
+  const fetchOffers = async () => {
+    const { data } = await supabase
+      .from('offers')
+      .select('*, campaigns(title, budget, owner_id, profiles(full_name))')
+      .eq('influencer_id', user?.id)
+      .order('created_at', { ascending: false });
+    
+    setOffers(data || []);
+    
+    if (data) {
+      const active = data.filter(o => o.status === 'accepted').length;
+      const pending = data.filter(o => o.status === 'pending').length;
+      
+      setStats({
+        balance: 0, // This would come from a payments table
+        activeCollaborations: active,
+        pendingInvitations: pending,
+      });
+    }
+  };
+
+  const handleLogout = async () => {
+    await signOut();
+    toast.success(t('common.logout'));
+    navigate('/auth/login');
+  };
 
   return (
     <div className="min-h-screen bg-muted/30">
@@ -18,7 +75,7 @@ const InfluencerDashboard = () => {
           </h1>
           <div className="flex items-center gap-3">
             <LanguageSwitcher />
-            <Button variant="ghost" size="sm">
+            <Button variant="ghost" size="sm" onClick={handleLogout}>
               {t('common.logout')}
             </Button>
           </div>
@@ -33,7 +90,7 @@ const InfluencerDashboard = () => {
               <div className="h-12 w-12 rounded-xl bg-success/10 flex items-center justify-center">
                 <Wallet className="h-6 w-6 text-success" />
               </div>
-              <span className="text-3xl font-bold">12,500</span>
+              <span className="text-3xl font-bold">{stats.balance.toLocaleString()}</span>
             </div>
             <h3 className="font-semibold text-muted-foreground">
               {t('dashboard.influencer.balance')} ر.س
@@ -45,7 +102,7 @@ const InfluencerDashboard = () => {
               <div className="h-12 w-12 rounded-xl bg-primary/10 flex items-center justify-center">
                 <Briefcase className="h-6 w-6 text-primary" />
               </div>
-              <span className="text-3xl font-bold">5</span>
+              <span className="text-3xl font-bold">{stats.activeCollaborations}</span>
             </div>
             <h3 className="font-semibold text-muted-foreground">
               {t('dashboard.influencer.activeCollaborations')}
@@ -57,7 +114,7 @@ const InfluencerDashboard = () => {
               <div className="h-12 w-12 rounded-xl bg-secondary/10 flex items-center justify-center">
                 <Mail className="h-6 w-6 text-secondary" />
               </div>
-              <span className="text-3xl font-bold">3</span>
+              <span className="text-3xl font-bold">{stats.pendingInvitations}</span>
             </div>
             <h3 className="font-semibold text-muted-foreground">
               {t('dashboard.influencer.pendingInvitations')}

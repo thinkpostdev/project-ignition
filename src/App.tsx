@@ -10,11 +10,13 @@ import { ProtectedRoute } from './components/ProtectedRoute';
 import Landing from "./pages/Landing";
 import Login from "./pages/auth/Login";
 import Register from "./pages/auth/Register";
-import OwnerDashboard from "./pages/dashboard/OwnerDashboard";
-import InfluencerDashboard from "./pages/dashboard/InfluencerDashboard";
-import CreateCampaign from "./pages/dashboard/owner/CreateCampaign";
-import CampaignDetail from "./pages/dashboard/owner/CampaignDetail";
-import NotFound from "./pages/NotFound";
+import OwnerDashboard from './pages/dashboard/OwnerDashboard';
+import InfluencerDashboard from './pages/dashboard/InfluencerDashboard';
+import CreateCampaign from './pages/dashboard/owner/CreateCampaign';
+import CampaignDetail from './pages/dashboard/owner/CampaignDetail';
+import OwnerOnboarding from './pages/onboarding/OwnerOnboarding';
+import InfluencerOnboarding from './pages/onboarding/InfluencerOnboarding';
+import NotFound from './pages/NotFound';
 
 const queryClient = new QueryClient();
 
@@ -30,6 +32,8 @@ const App = () => (
             <Route path="/" element={<Landing />} />
             <Route path="/auth/login" element={<Login />} />
             <Route path="/auth/register" element={<Register />} />
+            <Route path="/onboarding/owner" element={<ProtectedRoute><OwnerOnboarding /></ProtectedRoute>} />
+            <Route path="/onboarding/influencer" element={<ProtectedRoute><InfluencerOnboarding /></ProtectedRoute>} />
             <Route 
               path="/dashboard/owner" 
               element={

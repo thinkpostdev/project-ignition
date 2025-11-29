@@ -12,6 +12,8 @@ import Login from "./pages/auth/Login";
 import Register from "./pages/auth/Register";
 import OwnerDashboard from "./pages/dashboard/OwnerDashboard";
 import InfluencerDashboard from "./pages/dashboard/InfluencerDashboard";
+import CreateCampaign from "./pages/dashboard/owner/CreateCampaign";
+import CampaignDetail from "./pages/dashboard/owner/CampaignDetail";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -33,6 +35,22 @@ const App = () => (
               element={
                 <ProtectedRoute requiredRole="owner">
                   <OwnerDashboard />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/dashboard/owner/campaigns/new" 
+              element={
+                <ProtectedRoute requiredRole="owner">
+                  <CreateCampaign />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/dashboard/owner/campaigns/:id" 
+              element={
+                <ProtectedRoute requiredRole="owner">
+                  <CampaignDetail />
                 </ProtectedRoute>
               } 
             />

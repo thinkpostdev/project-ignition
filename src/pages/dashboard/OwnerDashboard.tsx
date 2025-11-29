@@ -47,7 +47,11 @@ const OwnerDashboard = () => {
     setCampaigns(data || []);
     
     if (data) {
-      const active = data.filter(c => c.status === 'active').length;
+      const active = data.filter(c => 
+        c.status === 'in_progress' || 
+        c.status === 'plan_ready' || 
+        c.status === 'waiting_influencer_responses'
+      ).length;
       const pending = data.reduce((acc, c) => acc + (c.offers?.[0]?.count || 0), 0);
       const spent = data.reduce((acc: number, c: any) => acc + (parseFloat(c.budget?.toString() || '0') || 0), 0);
       

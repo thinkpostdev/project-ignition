@@ -11,6 +11,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Card } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
@@ -26,25 +27,36 @@ const PLATFORMS = ['Instagram', 'TikTok', 'Snapchat', 'YouTube'];
 
 const step1Schema = z.object({
   display_name: z.string().min(2, 'الاسم مطلوب'),
-  instagram_handle: z.string().min(2, 'حساب إنستجرام مطلوب'),
   bio: z.string().optional(),
   cities: z.array(z.string()).min(1, 'اختر مدينة واحدة على الأقل'),
 });
 
 const step2Schema = z.object({
   primary_platforms: z.array(z.string()).min(1, 'اختر منصة واحدة على الأقل'),
+  instagram_handle: z.string().optional(),
   tiktok_url: z.string().url('رابط غير صحيح').optional().or(z.literal('')),
   snapchat_username: z.string().optional(),
+  youtube_url: z.string().url('رابط غير صحيح').optional().or(z.literal('')),
   category: z.enum(['food_reviews', 'lifestyle', 'fashion', 'travel', 'comedy', 'general']),
   content_type: z.string().optional(),
+}).refine((data) => {
+  // Ensure at least one account detail is provided
+  const hasInstagram = data.instagram_handle && data.instagram_handle.length > 0;
+  const hasTiktok = data.tiktok_url && data.tiktok_url.length > 0;
+  const hasSnapchat = data.snapchat_username && data.snapchat_username.length > 0;
+  const hasYoutube = data.youtube_url && data.youtube_url.length > 0;
+  
+  return hasInstagram || hasTiktok || hasSnapchat || hasYoutube;
+}, {
+  message: 'يجب إدخال معلومات حساب واحد على الأقل',
+  path: ['instagram_handle'],
 });
 
 const step3Schema = z.object({
   avg_views_instagram: z.enum(['0-10k', '10k-50k', '50k-100k', '100k-500k', '500k+']).optional(),
   avg_views_tiktok: z.enum(['0-10k', '10k-50k', '50k-100k', '100k-500k', '500k+']).optional(),
   avg_views_snapchat: z.enum(['0-10k', '10k-50k', '50k-100k', '100k-500k', '500k+']).optional(),
-  accept_hospitality: z.boolean(),
-  accept_paid: z.boolean(),
+  collaboration_type: z.enum(['hospitality', 'paid']),
   min_price: z.number().min(0).optional(),
   max_price: z.number().min(0).optional(),
 });
@@ -59,10 +71,7 @@ const InfluencerOnboarding = () => {
   const { user } = useAuth();
   const [currentStep, setCurrentStep] = useState(1);
   const [loading, setLoading] = useState(false);
-  const [formData, setFormData] = useState<Partial<Step1Data & Step2Data & Step3Data>>({
-    accept_hospitality: false,
-    accept_paid: false,
-  });
+  const [formData, setFormData] = useState<Partial<Step1Data & Step2Data & Step3Data>>({});
   const [selectedCities, setSelectedCities] = useState<string[]>([]);
   const [selectedPlatforms, setSelectedPlatforms] = useState<string[]>([]);
 
@@ -101,19 +110,20 @@ const InfluencerOnboarding = () => {
       const { error } = await supabase.from('influencer_profiles').insert([{
         user_id: user.id,
         display_name: finalData.display_name!,
-        instagram_handle: finalData.instagram_handle!,
+        instagram_handle: finalData.instagram_handle || null,
         bio: finalData.bio,
         cities: finalData.cities,
         primary_platforms: finalData.primary_platforms,
-        tiktok_url: finalData.tiktok_url,
-        snapchat_username: finalData.snapchat_username,
+        tiktok_url: finalData.tiktok_url || null,
+        snapchat_username: finalData.snapchat_username || null,
+        youtube_url: finalData.youtube_url || null,
         category: finalData.category,
         content_type: finalData.content_type,
         avg_views_instagram: finalData.avg_views_instagram,
         avg_views_tiktok: finalData.avg_views_tiktok,
         avg_views_snapchat: finalData.avg_views_snapchat,
-        accept_hospitality: finalData.accept_hospitality,
-        accept_paid: finalData.accept_paid,
+        accept_hospitality: finalData.collaboration_type === 'hospitality',
+        accept_paid: finalData.collaboration_type === 'paid',
         min_price: finalData.min_price,
         max_price: finalData.max_price,
       }]);
@@ -185,18 +195,6 @@ const InfluencerOnboarding = () => {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="instagram_handle">حساب إنستجرام *</Label>
-              <Input
-                id="instagram_handle"
-                {...form1.register('instagram_handle')}
-                placeholder="@username"
-              />
-              {form1.formState.errors.instagram_handle && (
-                <p className="text-sm text-destructive">{form1.formState.errors.instagram_handle.message}</p>
-              )}
-            </div>
-
-            <div className="space-y-2">
               <Label htmlFor="bio">نبذة عنك</Label>
               <Textarea
                 id="bio"
@@ -260,22 +258,48 @@ const InfluencerOnboarding = () => {
               )}
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="tiktok_url">رابط تيك توك</Label>
-              <Input
-                id="tiktok_url"
-                {...form2.register('tiktok_url')}
-                placeholder="https://tiktok.com/@username"
-              />
-            </div>
+            <div className="space-y-3 p-4 border rounded-lg bg-muted/30">
+              <Label className="text-base font-semibold">معلومات الحسابات (يجب إدخال حساب واحد على الأقل) *</Label>
+              
+              <div className="space-y-2">
+                <Label htmlFor="instagram_handle">حساب إنستجرام</Label>
+                <Input
+                  id="instagram_handle"
+                  {...form2.register('instagram_handle')}
+                  placeholder="@username"
+                />
+              </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="snapchat_username">سناب شات</Label>
-              <Input
-                id="snapchat_username"
-                {...form2.register('snapchat_username')}
-                placeholder="username"
-              />
+              <div className="space-y-2">
+                <Label htmlFor="tiktok_url">رابط تيك توك</Label>
+                <Input
+                  id="tiktok_url"
+                  {...form2.register('tiktok_url')}
+                  placeholder="https://tiktok.com/@username"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="snapchat_username">سناب شات</Label>
+                <Input
+                  id="snapchat_username"
+                  {...form2.register('snapchat_username')}
+                  placeholder="username"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="youtube_url">رابط يوتيوب</Label>
+                <Input
+                  id="youtube_url"
+                  {...form2.register('youtube_url')}
+                  placeholder="https://youtube.com/@channel"
+                />
+              </div>
+
+              {form2.formState.errors.instagram_handle && (
+                <p className="text-sm text-destructive font-semibold">{form2.formState.errors.instagram_handle.message}</p>
+              )}
             </div>
 
             <div className="space-y-2">
@@ -378,32 +402,32 @@ const InfluencerOnboarding = () => {
             </div>
 
             <div className="space-y-3 border-t pt-4">
-              <Label>أنواع التعاون</Label>
+              <Label>أنواع التعاون *</Label>
               
-              <div className="flex items-center space-x-2 space-x-reverse">
-                <Checkbox
-                  id="accept_hospitality"
-                  checked={form3.watch('accept_hospitality')}
-                  onCheckedChange={(checked) => form3.setValue('accept_hospitality', checked as boolean)}
-                />
-                <Label htmlFor="accept_hospitality" className="font-normal cursor-pointer">
-                  أقبل التعاون مقابل الضيافة فقط
-                </Label>
-              </div>
+              <RadioGroup
+                value={form3.watch('collaboration_type')}
+                onValueChange={(value) => form3.setValue('collaboration_type', value as 'hospitality' | 'paid')}
+              >
+                <div className="flex items-center space-x-2 space-x-reverse">
+                  <RadioGroupItem value="hospitality" id="hospitality" />
+                  <Label htmlFor="hospitality" className="font-normal cursor-pointer">
+                    أقبل التعاون مقابل الضيافة فقط
+                  </Label>
+                </div>
 
-              <div className="flex items-center space-x-2 space-x-reverse">
-                <Checkbox
-                  id="accept_paid"
-                  checked={form3.watch('accept_paid')}
-                  onCheckedChange={(checked) => form3.setValue('accept_paid', checked as boolean)}
-                />
-                <Label htmlFor="accept_paid" className="font-normal cursor-pointer">
-                  أقبل التعاون المدفوع
-                </Label>
-              </div>
+                <div className="flex items-center space-x-2 space-x-reverse">
+                  <RadioGroupItem value="paid" id="paid" />
+                  <Label htmlFor="paid" className="font-normal cursor-pointer">
+                    أقبل التعاون المدفوع
+                  </Label>
+                </div>
+              </RadioGroup>
+              {form3.formState.errors.collaboration_type && (
+                <p className="text-sm text-destructive">{form3.formState.errors.collaboration_type.message}</p>
+              )}
             </div>
 
-            {form3.watch('accept_paid') && (
+            {form3.watch('collaboration_type') === 'paid' && (
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="min_price">الحد الأدنى للسعر (ريال)</Label>

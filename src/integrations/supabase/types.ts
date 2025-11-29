@@ -14,16 +14,226 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      campaigns: {
+        Row: {
+          budget: number | null
+          content_requirements: string | null
+          created_at: string
+          description: string | null
+          id: string
+          owner_id: string
+          status: Database["public"]["Enums"]["campaign_status"]
+          target_engagement_min: number | null
+          target_followers_max: number | null
+          target_followers_min: number | null
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          budget?: number | null
+          content_requirements?: string | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          owner_id: string
+          status?: Database["public"]["Enums"]["campaign_status"]
+          target_engagement_min?: number | null
+          target_followers_max?: number | null
+          target_followers_min?: number | null
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          budget?: number | null
+          content_requirements?: string | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          owner_id?: string
+          status?: Database["public"]["Enums"]["campaign_status"]
+          target_engagement_min?: number | null
+          target_followers_max?: number | null
+          target_followers_min?: number | null
+          title?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      influencer_profiles: {
+        Row: {
+          content_style: string | null
+          created_at: string
+          engagement_rate: number | null
+          followers_count: number | null
+          id: string
+          instagram_handle: string
+          location: string | null
+          niche: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          content_style?: string | null
+          created_at?: string
+          engagement_rate?: number | null
+          followers_count?: number | null
+          id?: string
+          instagram_handle: string
+          location?: string | null
+          niche?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          content_style?: string | null
+          created_at?: string
+          engagement_rate?: number | null
+          followers_count?: number | null
+          id?: string
+          instagram_handle?: string
+          location?: string | null
+          niche?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      offers: {
+        Row: {
+          campaign_id: string
+          created_at: string
+          id: string
+          influencer_id: string
+          message: string | null
+          status: Database["public"]["Enums"]["offer_status"]
+          updated_at: string
+        }
+        Insert: {
+          campaign_id: string
+          created_at?: string
+          id?: string
+          influencer_id: string
+          message?: string | null
+          status?: Database["public"]["Enums"]["offer_status"]
+          updated_at?: string
+        }
+        Update: {
+          campaign_id?: string
+          created_at?: string
+          id?: string
+          influencer_id?: string
+          message?: string | null
+          status?: Database["public"]["Enums"]["offer_status"]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "offers_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "campaigns"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      owner_profiles: {
+        Row: {
+          business_name: string
+          business_type: string | null
+          created_at: string
+          id: string
+          instagram_handle: string | null
+          location: string | null
+          target_audience: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          business_name: string
+          business_type?: string | null
+          created_at?: string
+          id?: string
+          instagram_handle?: string | null
+          location?: string | null
+          target_audience?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          business_name?: string
+          business_type?: string | null
+          created_at?: string
+          id?: string
+          instagram_handle?: string | null
+          location?: string | null
+          target_audience?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      profiles: {
+        Row: {
+          avatar_url: string | null
+          created_at: string
+          full_name: string | null
+          id: string
+          phone: string | null
+          updated_at: string
+        }
+        Insert: {
+          avatar_url?: string | null
+          created_at?: string
+          full_name?: string | null
+          id: string
+          phone?: string | null
+          updated_at?: string
+        }
+        Update: {
+          avatar_url?: string | null
+          created_at?: string
+          full_name?: string | null
+          id?: string
+          phone?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      user_roles: {
+        Row: {
+          id: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Insert: {
+          id?: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Update: {
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      has_role: {
+        Args: {
+          _role: Database["public"]["Enums"]["app_role"]
+          _user_id: string
+        }
+        Returns: boolean
+      }
     }
     Enums: {
-      [_ in never]: never
+      app_role: "owner" | "influencer"
+      campaign_status: "draft" | "active" | "paused" | "completed"
+      offer_status: "pending" | "accepted" | "rejected" | "completed"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -150,6 +360,10 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      app_role: ["owner", "influencer"],
+      campaign_status: ["draft", "active", "paused", "completed"],
+      offer_status: ["pending", "accepted", "rejected", "completed"],
+    },
   },
 } as const

@@ -24,10 +24,27 @@ const InfluencerDashboard = () => {
 
   useEffect(() => {
     if (user) {
-      fetchProfile();
-      fetchOffers();
+      checkInfluencerProfile();
     }
   }, [user]);
+
+  const checkInfluencerProfile = async () => {
+    // Check if influencer profile exists
+    const { data: influencerProfile } = await supabase
+      .from('influencer_profiles')
+      .select('*')
+      .eq('user_id', user?.id)
+      .single();
+
+    if (!influencerProfile) {
+      toast.info('يرجى إكمال ملفك الشخصي');
+      navigate('/onboarding/influencer');
+      return;
+    }
+
+    fetchProfile();
+    fetchOffers();
+  };
 
   const fetchProfile = async () => {
     const { data } = await supabase

@@ -85,9 +85,9 @@ const Register = () => {
         toast.success(t('auth.register.success'));
         
         if (role === 'owner') {
-          navigate('/dashboard/owner');
+          navigate('/onboarding/owner');
         } else {
-          navigate('/dashboard/influencer');
+          navigate('/onboarding/influencer');
         }
       }
     } catch (error: any) {

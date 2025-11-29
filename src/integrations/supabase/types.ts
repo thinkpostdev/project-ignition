@@ -22,7 +22,7 @@ export type Database = {
           description: string | null
           id: string
           owner_id: string
-          status: Database["public"]["Enums"]["campaign_status"]
+          status: Database["public"]["Enums"]["campaign_detailed_status"]
           target_engagement_min: number | null
           target_followers_max: number | null
           target_followers_min: number | null
@@ -36,7 +36,7 @@ export type Database = {
           description?: string | null
           id?: string
           owner_id: string
-          status?: Database["public"]["Enums"]["campaign_status"]
+          status?: Database["public"]["Enums"]["campaign_detailed_status"]
           target_engagement_min?: number | null
           target_followers_max?: number | null
           target_followers_min?: number | null
@@ -50,7 +50,7 @@ export type Database = {
           description?: string | null
           id?: string
           owner_id?: string
-          status?: Database["public"]["Enums"]["campaign_status"]
+          status?: Database["public"]["Enums"]["campaign_detailed_status"]
           target_engagement_min?: number | null
           target_followers_max?: number | null
           target_followers_min?: number | null
@@ -232,6 +232,14 @@ export type Database = {
     }
     Enums: {
       app_role: "owner" | "influencer"
+      campaign_detailed_status:
+        | "draft"
+        | "waiting_match_plan"
+        | "plan_ready"
+        | "waiting_influencer_responses"
+        | "in_progress"
+        | "completed"
+        | "cancelled"
       campaign_status: "draft" | "active" | "paused" | "completed"
       offer_status: "pending" | "accepted" | "rejected" | "completed"
     }
@@ -362,6 +370,15 @@ export const Constants = {
   public: {
     Enums: {
       app_role: ["owner", "influencer"],
+      campaign_detailed_status: [
+        "draft",
+        "waiting_match_plan",
+        "plan_ready",
+        "waiting_influencer_responses",
+        "in_progress",
+        "completed",
+        "cancelled",
+      ],
       campaign_status: ["draft", "active", "paused", "completed"],
       offer_status: ["pending", "accepted", "rejected", "completed"],
     },

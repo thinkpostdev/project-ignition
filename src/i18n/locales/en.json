@@ -1,0 +1,86 @@
+{
+  "common": {
+    "login": "Login",
+    "register": "Register",
+    "logout": "Logout",
+    "save": "Save",
+    "cancel": "Cancel",
+    "next": "Next",
+    "back": "Back",
+    "submit": "Submit",
+    "loading": "Loading...",
+    "success": "Success",
+    "error": "Error occurred"
+  },
+  "landing": {
+    "hero": {
+      "title": "Influencer Marketing Platform",
+      "subtitle": "For Restaurants & Cafes",
+      "description": "Plan and launch marketing campaigns with top influencers in your area",
+      "ctaOwner": "Start as Restaurant Owner",
+      "ctaInfluencer": "Join as Influencer"
+    },
+    "features": {
+      "title": "Why Choose Us?",
+      "matching": {
+        "title": "Smart Matching",
+        "description": "Advanced algorithm connects you with the right influencers for your restaurant"
+      },
+      "management": {
+        "title": "Complete Management",
+        "description": "Track campaigns, content, and payments from one place"
+      },
+      "payments": {
+        "title": "Secure Payments",
+        "description": "Reliable and transparent payment system for all parties"
+      }
+    }
+  },
+  "auth": {
+    "login": {
+      "title": "Welcome Back",
+      "subtitle": "Login to continue",
+      "email": "Email",
+      "password": "Password",
+      "rememberMe": "Remember me",
+      "forgotPassword": "Forgot password?",
+      "noAccount": "Don't have an account?",
+      "registerLink": "Register now"
+    },
+    "register": {
+      "title": "Create New Account",
+      "subtitle": "Join our platform today",
+      "fullName": "Full Name",
+      "email": "Email",
+      "phone": "Phone Number",
+      "password": "Password",
+      "confirmPassword": "Confirm Password",
+      "role": "Account Type",
+      "roleOwner": "Restaurant / Cafe Owner",
+      "roleInfluencer": "Influencer",
+      "acceptTerms": "I agree to the terms and conditions",
+      "haveAccount": "Already have an account?",
+      "loginLink": "Login"
+    }
+  },
+  "dashboard": {
+    "owner": {
+      "greeting": "Hello",
+      "createCampaign": "Create New Campaign",
+      "activeCampaigns": "Active Campaigns",
+      "pendingResponses": "Pending Responses",
+      "moneySpent": "Money Spent"
+    },
+    "influencer": {
+      "earnings": "Earnings",
+      "balance": "Balance",
+      "activeCollaborations": "Active Collaborations",
+      "pendingInvitations": "Pending Invitations",
+      "newOpportunities": "New Opportunities",
+      "myCollaborations": "My Collaborations",
+      "viewDetails": "View Details",
+      "accept": "Accept",
+      "decline": "Decline"
+    }
+  }
+}

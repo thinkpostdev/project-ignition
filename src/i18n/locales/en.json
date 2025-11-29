@@ -45,7 +45,8 @@
       "rememberMe": "Remember me",
       "forgotPassword": "Forgot password?",
       "noAccount": "Don't have an account?",
-      "registerLink": "Register now"
+      "registerLink": "Register now",
+      "error": "Login failed"
     },
     "register": {
       "title": "Create New Account",
@@ -60,7 +61,10 @@
       "roleInfluencer": "Influencer",
       "acceptTerms": "I agree to the terms and conditions",
       "haveAccount": "Already have an account?",
-      "loginLink": "Login"
+      "loginLink": "Login",
+      "passwordMismatch": "Passwords do not match",
+      "success": "Account created successfully",
+      "error": "Failed to create account"
     }
   },
   "dashboard": {

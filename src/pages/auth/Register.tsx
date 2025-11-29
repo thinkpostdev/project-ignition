@@ -1,5 +1,5 @@
 import { useTranslation } from 'react-i18next';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -9,24 +9,92 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { LanguageSwitcher } from '@/components/LanguageSwitcher';
 import { toast } from 'sonner';
+import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/hooks/useAuth';
 
 const Register = () => {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
+  const { user } = useAuth();
   const [loading, setLoading] = useState(false);
   const [role, setRole] = useState(searchParams.get('role') || 'owner');
+  const [fullName, setFullName] = useState('');
+  const [email, setEmail] = useState('');
+  const [phone, setPhone] = useState('');
+  const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+
+  useEffect(() => {
+    if (user) {
+      // Redirect to appropriate dashboard
+      supabase
+        .from('user_roles')
+        .select('role')
+        .eq('user_id', user.id)
+        .single()
+        .then(({ data }) => {
+          if (data?.role === 'owner') {
+            navigate('/dashboard/owner');
+          } else if (data?.role === 'influencer') {
+            navigate('/dashboard/influencer');
+          }
+        });
+    }
+  }, [user, navigate]);
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+
+    if (password !== confirmPassword) {
+      toast.error(t('auth.register.passwordMismatch'));
+      return;
+    }
+
     setLoading(true);
 
-    // Simulate registration - will be replaced with actual auth
-    setTimeout(() => {
-      toast.success(t('common.success'));
-      navigate(`/onboarding/${role}`);
+    try {
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          emailRedirectTo: `${window.location.origin}/`,
+          data: {
+            full_name: fullName,
+            phone: phone,
+          },
+        },
+      });
+
+      if (error) throw error;
+
+      if (data.user) {
+        // Create profile
+        await supabase.from('profiles').insert({
+          id: data.user.id,
+          full_name: fullName,
+          phone: phone,
+        });
+
+        // Create user role
+        await supabase.from('user_roles').insert({
+          user_id: data.user.id,
+          role: role as 'owner' | 'influencer',
+        });
+
+        toast.success(t('auth.register.success'));
+        
+        if (role === 'owner') {
+          navigate('/dashboard/owner');
+        } else {
+          navigate('/dashboard/influencer');
+        }
+      }
+    } catch (error: any) {
+      toast.error(error.message || t('auth.register.error'));
+    } finally {
       setLoading(false);
-    }, 1000);
+    }
   };
 
   return (
@@ -44,7 +112,13 @@ const Register = () => {
         <form onSubmit={handleSubmit} className="space-y-6">
           <div className="space-y-2">
             <Label htmlFor="fullName">{t('auth.register.fullName')}</Label>
-            <Input id="fullName" required placeholder="أحمد محمد" />
+            <Input 
+              id="fullName" 
+              required 
+              placeholder="أحمد محمد"
+              value={fullName}
+              onChange={(e) => setFullName(e.target.value)}
+            />
           </div>
 
           <div className="space-y-2">
@@ -54,6 +128,8 @@ const Register = () => {
               type="email"
               required
               placeholder="name@example.com"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
             />
           </div>
 
@@ -64,6 +140,8 @@ const Register = () => {
               type="tel"
               required
               placeholder="+966 XX XXX XXXX"
+              value={phone}
+              onChange={(e) => setPhone(e.target.value)}
             />
           </div>
 
@@ -74,6 +152,9 @@ const Register = () => {
               type="password"
               required
               placeholder="••••••••"
+              minLength={6}
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
             />
           </div>
 
@@ -86,6 +167,9 @@ const Register = () => {
               type="password"
               required
               placeholder="••••••••"
+              minLength={6}
+              value={confirmPassword}
+              onChange={(e) => setConfirmPassword(e.target.value)}
             />
           </div>
 

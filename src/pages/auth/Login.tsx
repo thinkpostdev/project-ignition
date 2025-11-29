@@ -1,5 +1,5 @@
 import { useTranslation } from 'react-i18next';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -8,23 +8,68 @@ import { Card } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
 import { LanguageSwitcher } from '@/components/LanguageSwitcher';
 import { toast } from 'sonner';
+import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/hooks/useAuth';
 
 const Login = () => {
   const { t } = useTranslation();
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [loading, setLoading] = useState(false);
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+
+  useEffect(() => {
+    if (user) {
+      // Check user role and redirect
+      supabase
+        .from('user_roles')
+        .select('role')
+        .eq('user_id', user.id)
+        .single()
+        .then(({ data }) => {
+          if (data?.role === 'owner') {
+            navigate('/dashboard/owner');
+          } else if (data?.role === 'influencer') {
+            navigate('/dashboard/influencer');
+          }
+        });
+    }
+  }, [user, navigate]);
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setLoading(true);
 
-    // Simulate login - will be replaced with actual auth
-    setTimeout(() => {
-      toast.success(t('common.success'));
-      // For demo, redirect to owner dashboard
-      navigate('/dashboard/owner');
+    try {
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
+
+      if (error) throw error;
+
+      if (data.user) {
+        // Get user role
+        const { data: roleData } = await supabase
+          .from('user_roles')
+          .select('role')
+          .eq('user_id', data.user.id)
+          .single();
+
+        toast.success(t('common.success'));
+        
+        if (roleData?.role === 'owner') {
+          navigate('/dashboard/owner');
+        } else {
+          navigate('/dashboard/influencer');
+        }
+      }
+    } catch (error: any) {
+      toast.error(error.message || t('auth.login.error'));
+    } finally {
       setLoading(false);
-    }, 1000);
+    }
   };
 
   return (
@@ -47,6 +92,8 @@ const Login = () => {
               type="email"
               required
               placeholder="name@example.com"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
             />
           </div>
 
@@ -57,6 +104,8 @@ const Login = () => {
               type="password"
               required
               placeholder="••••••••"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
             />
           </div>
 

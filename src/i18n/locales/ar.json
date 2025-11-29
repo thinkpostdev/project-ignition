@@ -45,7 +45,8 @@
       "rememberMe": "تذكرني",
       "forgotPassword": "نسيت كلمة المرور؟",
       "noAccount": "ليس لديك حساب؟",
-      "registerLink": "سجل الآن"
+      "registerLink": "سجل الآن",
+      "error": "فشل تسجيل الدخول"
     },
     "register": {
       "title": "إنشاء حساب جديد",
@@ -60,7 +61,10 @@
       "roleInfluencer": "مؤثر",
       "acceptTerms": "أوافق على الشروط والأحكام",
       "haveAccount": "لديك حساب بالفعل؟",
-      "loginLink": "سجل الدخول"
+      "loginLink": "سجل الدخول",
+      "passwordMismatch": "كلمات المرور غير متطابقة",
+      "success": "تم إنشاء الحساب بنجاح",
+      "error": "فشل إنشاء الحساب"
     }
   },
   "dashboard": {

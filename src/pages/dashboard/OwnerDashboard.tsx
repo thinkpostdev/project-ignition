@@ -23,10 +23,27 @@ const OwnerDashboard = () => {
 
   useEffect(() => {
     if (user) {
-      fetchProfile();
-      fetchCampaigns();
+      checkOwnerProfile();
     }
   }, [user]);
+
+  const checkOwnerProfile = async () => {
+    // Check if owner profile exists
+    const { data: ownerProfile } = await supabase
+      .from('owner_profiles')
+      .select('*')
+      .eq('user_id', user?.id)
+      .single();
+
+    if (!ownerProfile) {
+      toast.info('يرجى إكمال ملف المنشأة');
+      navigate('/onboarding/owner');
+      return;
+    }
+
+    fetchProfile();
+    fetchCampaigns();
+  };
 
   const fetchProfile = async () => {
     const { data } = await supabase

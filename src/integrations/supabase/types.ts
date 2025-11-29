@@ -14,15 +14,175 @@ export type Database = {
   }
   public: {
     Tables: {
+      branches: {
+        Row: {
+          address: string | null
+          city: string
+          created_at: string | null
+          google_map_url: string | null
+          id: string
+          owner_id: string
+          updated_at: string | null
+        }
+        Insert: {
+          address?: string | null
+          city: string
+          created_at?: string | null
+          google_map_url?: string | null
+          id?: string
+          owner_id: string
+          updated_at?: string | null
+        }
+        Update: {
+          address?: string | null
+          city?: string
+          created_at?: string | null
+          google_map_url?: string | null
+          id?: string
+          owner_id?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      campaign_influencer_suggestions: {
+        Row: {
+          avg_views_val: number | null
+          campaign_id: string
+          city_served: string | null
+          content_type: string | null
+          created_at: string | null
+          history_price_cat: string | null
+          history_type: string | null
+          id: string
+          influencer_id: string
+          match_score: number | null
+          min_price: number | null
+          name: string | null
+          platform: string | null
+          selected: boolean | null
+          type_label: string | null
+        }
+        Insert: {
+          avg_views_val?: number | null
+          campaign_id: string
+          city_served?: string | null
+          content_type?: string | null
+          created_at?: string | null
+          history_price_cat?: string | null
+          history_type?: string | null
+          id?: string
+          influencer_id: string
+          match_score?: number | null
+          min_price?: number | null
+          name?: string | null
+          platform?: string | null
+          selected?: boolean | null
+          type_label?: string | null
+        }
+        Update: {
+          avg_views_val?: number | null
+          campaign_id?: string
+          city_served?: string | null
+          content_type?: string | null
+          created_at?: string | null
+          history_price_cat?: string | null
+          history_type?: string | null
+          id?: string
+          influencer_id?: string
+          match_score?: number | null
+          min_price?: number | null
+          name?: string | null
+          platform?: string | null
+          selected?: boolean | null
+          type_label?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "campaign_influencer_suggestions_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "campaigns"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      campaign_schedule_items: {
+        Row: {
+          campaign_id: string
+          collaboration_type: string | null
+          created_at: string | null
+          date: string | null
+          day_number: number
+          id: string
+          idea: string | null
+          influencer_id: string | null
+          influencer_name: string | null
+          platform: string | null
+          proof_links: Json | null
+          proof_screenshots: string[] | null
+          status: Database["public"]["Enums"]["collaboration_status"] | null
+          updated_at: string | null
+        }
+        Insert: {
+          campaign_id: string
+          collaboration_type?: string | null
+          created_at?: string | null
+          date?: string | null
+          day_number: number
+          id?: string
+          idea?: string | null
+          influencer_id?: string | null
+          influencer_name?: string | null
+          platform?: string | null
+          proof_links?: Json | null
+          proof_screenshots?: string[] | null
+          status?: Database["public"]["Enums"]["collaboration_status"] | null
+          updated_at?: string | null
+        }
+        Update: {
+          campaign_id?: string
+          collaboration_type?: string | null
+          created_at?: string | null
+          date?: string | null
+          day_number?: number
+          id?: string
+          idea?: string | null
+          influencer_id?: string | null
+          influencer_name?: string | null
+          platform?: string | null
+          proof_links?: Json | null
+          proof_screenshots?: string[] | null
+          status?: Database["public"]["Enums"]["collaboration_status"] | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "campaign_schedule_items_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "campaigns"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       campaigns: {
         Row: {
+          add_bonus_hospitality: boolean | null
+          algorithm_version: string | null
+          branch_id: string | null
           budget: number | null
+          budget_summary: Json | null
           content_requirements: string | null
           created_at: string
           description: string | null
+          duration_days: number | null
+          goal: Database["public"]["Enums"]["campaign_goal"] | null
+          goal_details: string | null
           id: string
           owner_id: string
+          start_date: string | null
           status: Database["public"]["Enums"]["campaign_detailed_status"]
+          strategy_summary: Json | null
           target_engagement_min: number | null
           target_followers_max: number | null
           target_followers_min: number | null
@@ -30,13 +190,22 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          add_bonus_hospitality?: boolean | null
+          algorithm_version?: string | null
+          branch_id?: string | null
           budget?: number | null
+          budget_summary?: Json | null
           content_requirements?: string | null
           created_at?: string
           description?: string | null
+          duration_days?: number | null
+          goal?: Database["public"]["Enums"]["campaign_goal"] | null
+          goal_details?: string | null
           id?: string
           owner_id: string
+          start_date?: string | null
           status?: Database["public"]["Enums"]["campaign_detailed_status"]
+          strategy_summary?: Json | null
           target_engagement_min?: number | null
           target_followers_max?: number | null
           target_followers_min?: number | null
@@ -44,59 +213,259 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          add_bonus_hospitality?: boolean | null
+          algorithm_version?: string | null
+          branch_id?: string | null
           budget?: number | null
+          budget_summary?: Json | null
           content_requirements?: string | null
           created_at?: string
           description?: string | null
+          duration_days?: number | null
+          goal?: Database["public"]["Enums"]["campaign_goal"] | null
+          goal_details?: string | null
           id?: string
           owner_id?: string
+          start_date?: string | null
           status?: Database["public"]["Enums"]["campaign_detailed_status"]
+          strategy_summary?: Json | null
           target_engagement_min?: number | null
           target_followers_max?: number | null
           target_followers_min?: number | null
           title?: string
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "fk_campaigns_branch"
+            columns: ["branch_id"]
+            isOneToOne: false
+            referencedRelation: "branches"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      conversations: {
+        Row: {
+          campaign_id: string
+          created_at: string | null
+          id: string
+          influencer_id: string
+          owner_id: string
+          updated_at: string | null
+        }
+        Insert: {
+          campaign_id: string
+          created_at?: string | null
+          id?: string
+          influencer_id: string
+          owner_id: string
+          updated_at?: string | null
+        }
+        Update: {
+          campaign_id?: string
+          created_at?: string | null
+          id?: string
+          influencer_id?: string
+          owner_id?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "conversations_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "campaigns"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      influencer_invitations: {
+        Row: {
+          campaign_id: string
+          created_at: string | null
+          id: string
+          influencer_id: string
+          offered_price: number | null
+          responded_at: string | null
+          status: Database["public"]["Enums"]["invitation_status"] | null
+        }
+        Insert: {
+          campaign_id: string
+          created_at?: string | null
+          id?: string
+          influencer_id: string
+          offered_price?: number | null
+          responded_at?: string | null
+          status?: Database["public"]["Enums"]["invitation_status"] | null
+        }
+        Update: {
+          campaign_id?: string
+          created_at?: string | null
+          id?: string
+          influencer_id?: string
+          offered_price?: number | null
+          responded_at?: string | null
+          status?: Database["public"]["Enums"]["invitation_status"] | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "influencer_invitations_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "campaigns"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       influencer_profiles: {
         Row: {
+          accept_hospitality: boolean | null
+          accept_paid: boolean | null
+          avg_likes_range: Database["public"]["Enums"]["avg_range"] | null
+          avg_views_instagram: Database["public"]["Enums"]["avg_range"] | null
+          avg_views_snapchat: Database["public"]["Enums"]["avg_range"] | null
+          avg_views_tiktok: Database["public"]["Enums"]["avg_range"] | null
+          avg_views_val: number | null
+          bio: string | null
+          category: Database["public"]["Enums"]["influencer_category"] | null
+          cities: string[] | null
+          city_served: string | null
           content_style: string | null
+          content_type: string | null
           created_at: string
+          display_name: string | null
           engagement_rate: number | null
           followers_count: number | null
+          history_category: string | null
+          history_price_cat: string | null
+          history_type: string | null
           id: string
           instagram_handle: string
           location: string | null
+          max_price: number | null
+          min_price: number | null
           niche: string | null
+          notes_preferences: string | null
+          primary_platforms: string[] | null
+          snapchat_username: string | null
+          tiktok_url: string | null
+          type_label: string | null
           updated_at: string
           user_id: string
         }
         Insert: {
+          accept_hospitality?: boolean | null
+          accept_paid?: boolean | null
+          avg_likes_range?: Database["public"]["Enums"]["avg_range"] | null
+          avg_views_instagram?: Database["public"]["Enums"]["avg_range"] | null
+          avg_views_snapchat?: Database["public"]["Enums"]["avg_range"] | null
+          avg_views_tiktok?: Database["public"]["Enums"]["avg_range"] | null
+          avg_views_val?: number | null
+          bio?: string | null
+          category?: Database["public"]["Enums"]["influencer_category"] | null
+          cities?: string[] | null
+          city_served?: string | null
           content_style?: string | null
+          content_type?: string | null
           created_at?: string
+          display_name?: string | null
           engagement_rate?: number | null
           followers_count?: number | null
+          history_category?: string | null
+          history_price_cat?: string | null
+          history_type?: string | null
           id?: string
           instagram_handle: string
           location?: string | null
+          max_price?: number | null
+          min_price?: number | null
           niche?: string | null
+          notes_preferences?: string | null
+          primary_platforms?: string[] | null
+          snapchat_username?: string | null
+          tiktok_url?: string | null
+          type_label?: string | null
           updated_at?: string
           user_id: string
         }
         Update: {
+          accept_hospitality?: boolean | null
+          accept_paid?: boolean | null
+          avg_likes_range?: Database["public"]["Enums"]["avg_range"] | null
+          avg_views_instagram?: Database["public"]["Enums"]["avg_range"] | null
+          avg_views_snapchat?: Database["public"]["Enums"]["avg_range"] | null
+          avg_views_tiktok?: Database["public"]["Enums"]["avg_range"] | null
+          avg_views_val?: number | null
+          bio?: string | null
+          category?: Database["public"]["Enums"]["influencer_category"] | null
+          cities?: string[] | null
+          city_served?: string | null
           content_style?: string | null
+          content_type?: string | null
           created_at?: string
+          display_name?: string | null
           engagement_rate?: number | null
           followers_count?: number | null
+          history_category?: string | null
+          history_price_cat?: string | null
+          history_type?: string | null
           id?: string
           instagram_handle?: string
           location?: string | null
+          max_price?: number | null
+          min_price?: number | null
           niche?: string | null
+          notes_preferences?: string | null
+          primary_platforms?: string[] | null
+          snapchat_username?: string | null
+          tiktok_url?: string | null
+          type_label?: string | null
           updated_at?: string
           user_id?: string
         }
         Relationships: []
+      }
+      messages: {
+        Row: {
+          attachments: string[] | null
+          conversation_id: string
+          created_at: string | null
+          id: string
+          read_at: string | null
+          sender_id: string
+          sender_type: Database["public"]["Enums"]["sender_type"]
+          text: string
+        }
+        Insert: {
+          attachments?: string[] | null
+          conversation_id: string
+          created_at?: string | null
+          id?: string
+          read_at?: string | null
+          sender_id: string
+          sender_type: Database["public"]["Enums"]["sender_type"]
+          text: string
+        }
+        Update: {
+          attachments?: string[] | null
+          conversation_id?: string
+          created_at?: string | null
+          id?: string
+          read_at?: string | null
+          sender_id?: string
+          sender_type?: Database["public"]["Enums"]["sender_type"]
+          text?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "messages_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "conversations"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       offers: {
         Row: {
@@ -140,33 +509,54 @@ export type Database = {
         Row: {
           business_name: string
           business_type: string | null
+          cities: string[] | null
           created_at: string
           id: string
           instagram_handle: string | null
           location: string | null
+          logo_url: string | null
+          main_type: Database["public"]["Enums"]["main_type"] | null
+          price_level: Database["public"]["Enums"]["price_level"] | null
+          snapchat_url: string | null
+          sub_category: string | null
           target_audience: string | null
+          tiktok_url: string | null
           updated_at: string
           user_id: string
         }
         Insert: {
           business_name: string
           business_type?: string | null
+          cities?: string[] | null
           created_at?: string
           id?: string
           instagram_handle?: string | null
           location?: string | null
+          logo_url?: string | null
+          main_type?: Database["public"]["Enums"]["main_type"] | null
+          price_level?: Database["public"]["Enums"]["price_level"] | null
+          snapchat_url?: string | null
+          sub_category?: string | null
           target_audience?: string | null
+          tiktok_url?: string | null
           updated_at?: string
           user_id: string
         }
         Update: {
           business_name?: string
           business_type?: string | null
+          cities?: string[] | null
           created_at?: string
           id?: string
           instagram_handle?: string | null
           location?: string | null
+          logo_url?: string | null
+          main_type?: Database["public"]["Enums"]["main_type"] | null
+          price_level?: Database["public"]["Enums"]["price_level"] | null
+          snapchat_url?: string | null
+          sub_category?: string | null
           target_audience?: string | null
+          tiktok_url?: string | null
           updated_at?: string
           user_id?: string
         }
@@ -232,6 +622,7 @@ export type Database = {
     }
     Enums: {
       app_role: "owner" | "influencer"
+      avg_range: "0-10k" | "10k-50k" | "50k-100k" | "100k-500k" | "500k+"
       campaign_detailed_status:
         | "draft"
         | "waiting_match_plan"
@@ -240,8 +631,27 @@ export type Database = {
         | "in_progress"
         | "completed"
         | "cancelled"
+      campaign_goal: "opening" | "promotions" | "new_products" | "other"
       campaign_status: "draft" | "active" | "paused" | "completed"
+      collaboration_status:
+        | "pending"
+        | "accepted"
+        | "shooting"
+        | "uploaded"
+        | "posted"
+        | "problem"
+      influencer_category:
+        | "food_reviews"
+        | "lifestyle"
+        | "fashion"
+        | "travel"
+        | "comedy"
+        | "general"
+      invitation_status: "pending" | "accepted" | "declined" | "cancelled"
+      main_type: "restaurant" | "cafe"
       offer_status: "pending" | "accepted" | "rejected" | "completed"
+      price_level: "cheap" | "moderate" | "expensive"
+      sender_type: "owner" | "influencer"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -370,6 +780,7 @@ export const Constants = {
   public: {
     Enums: {
       app_role: ["owner", "influencer"],
+      avg_range: ["0-10k", "10k-50k", "50k-100k", "100k-500k", "500k+"],
       campaign_detailed_status: [
         "draft",
         "waiting_match_plan",
@@ -379,8 +790,29 @@ export const Constants = {
         "completed",
         "cancelled",
       ],
+      campaign_goal: ["opening", "promotions", "new_products", "other"],
       campaign_status: ["draft", "active", "paused", "completed"],
+      collaboration_status: [
+        "pending",
+        "accepted",
+        "shooting",
+        "uploaded",
+        "posted",
+        "problem",
+      ],
+      influencer_category: [
+        "food_reviews",
+        "lifestyle",
+        "fashion",
+        "travel",
+        "comedy",
+        "general",
+      ],
+      invitation_status: ["pending", "accepted", "declined", "cancelled"],
+      main_type: ["restaurant", "cafe"],
       offer_status: ["pending", "accepted", "rejected", "completed"],
+      price_level: ["cheap", "moderate", "expensive"],
+      sender_type: ["owner", "influencer"],
     },
   },
 } as const

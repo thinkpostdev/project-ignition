@@ -36,7 +36,6 @@ const step2Schema = z.object({
   instagram_handle: z.string().optional(),
   tiktok_url: z.string().url('رابط غير صحيح').optional().or(z.literal('')),
   snapchat_username: z.string().optional(),
-  youtube_url: z.string().url('رابط غير صحيح').optional().or(z.literal('')),
   category: z.enum(['food_reviews', 'lifestyle', 'fashion', 'travel', 'comedy', 'general']),
   content_type: z.string().optional(),
 }).refine((data) => {
@@ -44,9 +43,8 @@ const step2Schema = z.object({
   const hasInstagram = data.instagram_handle && data.instagram_handle.length > 0;
   const hasTiktok = data.tiktok_url && data.tiktok_url.length > 0;
   const hasSnapchat = data.snapchat_username && data.snapchat_username.length > 0;
-  const hasYoutube = data.youtube_url && data.youtube_url.length > 0;
   
-  return hasInstagram || hasTiktok || hasSnapchat || hasYoutube;
+  return hasInstagram || hasTiktok || hasSnapchat;
 }, {
   message: 'يجب إدخال معلومات حساب واحد على الأقل',
   path: ['instagram_handle'],
@@ -116,7 +114,6 @@ const InfluencerOnboarding = () => {
         primary_platforms: finalData.primary_platforms,
         tiktok_url: finalData.tiktok_url || null,
         snapchat_username: finalData.snapchat_username || null,
-        youtube_url: finalData.youtube_url || null,
         category: finalData.category,
         content_type: finalData.content_type,
         avg_views_instagram: finalData.avg_views_instagram,
@@ -285,15 +282,6 @@ const InfluencerOnboarding = () => {
                   id="snapchat_username"
                   {...form2.register('snapchat_username')}
                   placeholder="username"
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="youtube_url">رابط يوتيوب</Label>
-                <Input
-                  id="youtube_url"
-                  {...form2.register('youtube_url')}
-                  placeholder="https://youtube.com/@channel"
                 />
               </div>
 

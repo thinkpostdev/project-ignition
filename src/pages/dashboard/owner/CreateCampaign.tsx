@@ -128,6 +128,20 @@ const CreateCampaign = () => {
       if (error) throw error;
 
       toast.success('تم إنشاء الحملة بنجاح!');
+      
+      // Trigger AI matching in background
+      toast.info('جاري تحليل المؤثرين المناسبين...');
+      supabase.functions.invoke('match-influencers', {
+        body: { campaign_id: campaign.id }
+      }).then(({ error: matchError }) => {
+        if (matchError) {
+          console.error('Matching error:', matchError);
+          toast.error('حدث خطأ في تحليل المؤثرين');
+        } else {
+          toast.success('تم العثور على مؤثرين مناسبين!');
+        }
+      });
+
       navigate(`/dashboard/owner/campaigns/${campaign.id}`);
     } catch (error: any) {
       toast.error(error.message || 'فشل في إنشاء الحملة');

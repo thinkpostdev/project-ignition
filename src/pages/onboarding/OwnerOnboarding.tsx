@@ -13,12 +13,39 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
-import { ChevronRight, ChevronLeft, Check } from 'lucide-react';
+import { ChevronRight, ChevronLeft, Check, Plus, Trash2 } from 'lucide-react';
 
 const SAUDI_CITIES = [
   'الرياض', 'جدة', 'مكة المكرمة', 'المدينة المنورة', 'الدمام', 'الخبر', 
   'الطائف', 'بريدة', 'تبوك', 'خميس مشيط', 'الهفوف', 'حائل', 'نجران', 
   'الجبيل', 'ينبع', 'أبها', 'عرعر', 'سكاكا', 'جازان', 'القطيف'
+];
+
+const RESTAURANT_SUB_CATEGORIES = [
+  'مطعم شعبي',
+  'مطعم إيطالي',
+  'مطعم أمريكي',
+  'مطعم يمني',
+  'مطعم شامي (سوري / لبناني)',
+  'مطعم تركي',
+  'مطعم مصري',
+  'مطعم هندي',
+  'مطعم باكستاني',
+  'مطعم صيني',
+  'مطعم ياباني (سوشي، رامِن)',
+  'مطعم آسيوي فيوجن (خلطات آسيوية عامة)',
+  'مطعم مكسيكي',
+  'مطعم ستيك / مشاوي',
+  'مطعم بحري (سي فود)',
+  'مطعم برجر',
+  'مطعم بيتزا',
+  'مطعم شاورما / بروست',
+];
+
+const CAFE_SUB_CATEGORIES = [
+  'كوفي شوب قهوة مختصة (Specialty Coffee)',
+  'كوفي شوب تجاري (Brands معروفة / قهوة عادية)',
+  'كوفي شوب درايف ثرو (فاست قهوة بالسيارة)',
 ];
 
 const step1Schema = z.object({
@@ -28,19 +55,35 @@ const step1Schema = z.object({
   price_level: z.enum(['cheap', 'moderate', 'expensive']),
 });
 
+const branchSchema = z.object({
+  city: z.string().min(1, 'المدينة مطلوبة'),
+  neighborhood: z.string().min(1, 'اسم الحي مطلوب'),
+  google_map_url: z.string().url('رابط خرائط جوجل غير صحيح').optional().or(z.literal('')),
+});
+
 const step2Schema = z.object({
-  location: z.string().min(2, 'الموقع مطلوب'),
-  cities: z.array(z.string()).min(1, 'اختر مدينة واحدة على الأقل'),
+  branches: z.array(branchSchema).min(1, 'يجب إضافة فرع واحد على الأقل'),
 });
 
 const step3Schema = z.object({
   instagram_handle: z.string().optional(),
-  tiktok_url: z.string().url('رابط غير صحيح').optional().or(z.literal('')),
+  tiktok_username: z.string().optional(),
   snapchat_url: z.string().url('رابط غير صحيح').optional().or(z.literal('')),
   target_audience: z.string().optional(),
+}).refine((data) => {
+  // Ensure at least one social media account is provided
+  const hasInstagram = data.instagram_handle && data.instagram_handle.length > 0;
+  const hasTiktok = data.tiktok_username && data.tiktok_username.length > 0;
+  const hasSnapchat = data.snapchat_url && data.snapchat_url.length > 0;
+  
+  return hasInstagram || hasTiktok || hasSnapchat;
+}, {
+  message: 'يجب إدخال معلومات حساب واحد على الأقل',
+  path: ['instagram_handle'],
 });
 
 type Step1Data = z.infer<typeof step1Schema>;
+type Branch = z.infer<typeof branchSchema>;
 type Step2Data = z.infer<typeof step2Schema>;
 type Step3Data = z.infer<typeof step3Schema>;
 
@@ -51,7 +94,7 @@ const OwnerOnboarding = () => {
   const [currentStep, setCurrentStep] = useState(1);
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState<Partial<Step1Data & Step2Data & Step3Data>>({});
-  const [selectedCities, setSelectedCities] = useState<string[]>([]);
+  const [branches, setBranches] = useState<Branch[]>([{ city: '', neighborhood: '', google_map_url: '' }]);
 
   const form1 = useForm<Step1Data>({
     resolver: zodResolver(step1Schema),
@@ -60,7 +103,7 @@ const OwnerOnboarding = () => {
 
   const form2 = useForm<Step2Data>({
     resolver: zodResolver(step2Schema),
-    defaultValues: { ...formData, cities: selectedCities },
+    defaultValues: { branches },
   });
 
   const form3 = useForm<Step3Data>({
@@ -75,6 +118,7 @@ const OwnerOnboarding = () => {
 
   const handleStep2 = (data: Step2Data) => {
     setFormData({ ...formData, ...data });
+    setBranches(data.branches);
     setCurrentStep(3);
   };
 
@@ -85,23 +129,81 @@ const OwnerOnboarding = () => {
     try {
       const finalData = { ...formData, ...data };
       
-      const { error } = await supabase.from('owner_profiles').insert([{
-        user_id: user.id,
-        business_name: finalData.business_name!,
-        main_type: finalData.main_type,
-        sub_category: finalData.sub_category,
-        price_level: finalData.price_level,
-        location: finalData.location!,
-        cities: finalData.cities,
-        instagram_handle: finalData.instagram_handle,
-        tiktok_url: finalData.tiktok_url,
-        snapchat_url: finalData.snapchat_url,
-        target_audience: finalData.target_audience,
-      }]);
+      // Check if profile already exists
+      const { data: existingProfile } = await supabase
+        .from('owner_profiles')
+        .select('id')
+        .eq('user_id', user.id)
+        .single();
 
-      if (error) throw error;
+      let ownerProfile;
 
-      toast.success('تم إنشاء الملف الشخصي بنجاح');
+      if (existingProfile) {
+        // Update existing profile
+        const { data: updatedProfile, error: updateError } = await supabase
+          .from('owner_profiles')
+          .update({
+            business_name: finalData.business_name!,
+            main_type: finalData.main_type,
+            sub_category: finalData.sub_category,
+            price_level: finalData.price_level,
+            instagram_handle: finalData.instagram_handle,
+            tiktok_username: finalData.tiktok_username,
+            snapchat_url: finalData.snapchat_url,
+            target_audience: finalData.target_audience,
+            updated_at: new Date().toISOString(),
+          })
+          .eq('user_id', user.id)
+          .select()
+          .single();
+
+        if (updateError) throw updateError;
+        ownerProfile = updatedProfile;
+
+        // Delete existing branches before adding new ones
+        await supabase
+          .from('branches')
+          .delete()
+          .eq('owner_id', existingProfile.id);
+      } else {
+        // Create new profile
+        const { data: newProfile, error: profileError } = await supabase
+          .from('owner_profiles')
+          .insert([{
+            user_id: user.id,
+            business_name: finalData.business_name!,
+            main_type: finalData.main_type,
+            sub_category: finalData.sub_category,
+            price_level: finalData.price_level,
+            instagram_handle: finalData.instagram_handle,
+            tiktok_username: finalData.tiktok_username,
+            snapchat_url: finalData.snapchat_url,
+            target_audience: finalData.target_audience,
+          }])
+          .select()
+          .single();
+
+        if (profileError) throw profileError;
+        ownerProfile = newProfile;
+      }
+
+      // Then, create the branches
+      if (branches.length > 0 && ownerProfile) {
+        const branchesData = branches.map(branch => ({
+          owner_id: ownerProfile.id,
+          city: branch.city,
+          neighborhood: branch.neighborhood,
+          google_map_url: branch.google_map_url || null,
+        }));
+
+        const { error: branchesError } = await supabase
+          .from('branches')
+          .insert(branchesData);
+
+        if (branchesError) throw branchesError;
+      }
+
+      toast.success('تم حفظ الملف الشخصي بنجاح');
       navigate('/dashboard/owner');
     } catch (error: any) {
       toast.error(error.message || 'حدث خطأ أثناء حفظ البيانات');
@@ -110,16 +212,23 @@ const OwnerOnboarding = () => {
     }
   };
 
-  const toggleCity = (city: string) => {
-    setSelectedCities(prev => 
-      prev.includes(city) 
-        ? prev.filter(c => c !== city)
-        : [...prev, city]
-    );
-    form2.setValue('cities', selectedCities.includes(city) 
-      ? selectedCities.filter(c => c !== city)
-      : [...selectedCities, city]
-    );
+  const addBranch = () => {
+    const newBranches = [...branches, { city: '', neighborhood: '', google_map_url: '' }];
+    setBranches(newBranches);
+    form2.setValue('branches', newBranches);
+  };
+
+  const removeBranch = (index: number) => {
+    const newBranches = branches.filter((_, i) => i !== index);
+    setBranches(newBranches);
+    form2.setValue('branches', newBranches);
+  };
+
+  const updateBranch = (index: number, field: keyof Branch, value: string) => {
+    const newBranches = [...branches];
+    newBranches[index] = { ...newBranches[index], [field]: value };
+    setBranches(newBranches);
+    form2.setValue('branches', newBranches);
   };
 
   return (
@@ -155,7 +264,11 @@ const OwnerOnboarding = () => {
 
             <div className="space-y-2">
               <Label htmlFor="main_type">نوع المنشأة *</Label>
-              <Select onValueChange={(value) => form1.setValue('main_type', value as any)}>
+              <Select onValueChange={(value) => {
+                form1.setValue('main_type', value as any);
+                // Reset subcategory when main type changes
+                form1.setValue('sub_category', undefined);
+              }}>
                 <SelectTrigger>
                   <SelectValue placeholder="اختر النوع" />
                 </SelectTrigger>
@@ -171,11 +284,34 @@ const OwnerOnboarding = () => {
 
             <div className="space-y-2">
               <Label htmlFor="sub_category">الفئة الفرعية</Label>
-              <Input
-                id="sub_category"
-                {...form1.register('sub_category')}
-                placeholder="مطعم إيطالي، مقهى متخصص"
-              />
+              <Select 
+                onValueChange={(value) => form1.setValue('sub_category', value)}
+                disabled={!form1.watch('main_type')}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder={
+                    form1.watch('main_type') 
+                      ? "اختر الفئة الفرعية" 
+                      : "اختر نوع المنشأة أولاً"
+                  } />
+                </SelectTrigger>
+                <SelectContent>
+                  {form1.watch('main_type') === 'restaurant' && 
+                    RESTAURANT_SUB_CATEGORIES.map((category) => (
+                      <SelectItem key={category} value={category}>
+                        {category}
+                      </SelectItem>
+                    ))
+                  }
+                  {form1.watch('main_type') === 'cafe' && 
+                    CAFE_SUB_CATEGORIES.map((category) => (
+                      <SelectItem key={category} value={category}>
+                        {category}
+                      </SelectItem>
+                    ))
+                  }
+                </SelectContent>
+              </Select>
             </div>
 
             <div className="space-y-2">
@@ -203,38 +339,83 @@ const OwnerOnboarding = () => {
 
         {currentStep === 2 && (
           <form onSubmit={form2.handleSubmit(handleStep2)} className="space-y-6">
-            <div className="space-y-2">
-              <Label htmlFor="location">العنوان *</Label>
-              <Input
-                id="location"
-                {...form2.register('location')}
-                placeholder="الرياض، حي النخيل"
-              />
-              {form2.formState.errors.location && (
-                <p className="text-sm text-destructive">{form2.formState.errors.location.message}</p>
-              )}
-            </div>
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <Label className="text-lg">أضف فروع منشأتك *</Label>
+                <Button
+                  type="button"
+                  onClick={addBranch}
+                  variant="outline"
+                  size="sm"
+                  className="gap-2"
+                >
+                  <Plus className="h-4 w-4" />
+                  إضافة فرع
+                </Button>
+              </div>
 
-            <div className="space-y-2">
-              <Label>المدن التي تخدمها *</Label>
-              <div className="grid grid-cols-2 gap-2 max-h-64 overflow-y-auto p-2 border rounded-md">
-                {SAUDI_CITIES.map((city) => (
-                  <button
-                    key={city}
-                    type="button"
-                    onClick={() => toggleCity(city)}
-                    className={`p-2 text-sm rounded-md transition-colors ${
-                      selectedCities.includes(city)
-                        ? 'bg-primary text-primary-foreground'
-                        : 'bg-muted hover:bg-muted/70'
-                    }`}
-                  >
-                    {city}
-                  </button>
+              <div className="space-y-4 max-h-96 overflow-y-auto">
+                {branches.map((branch, index) => (
+                  <Card key={index} className="p-4 space-y-3 relative">
+                    {branches.length > 1 && (
+                      <Button
+                        type="button"
+                        onClick={() => removeBranch(index)}
+                        variant="ghost"
+                        size="sm"
+                        className="absolute top-2 left-2 h-8 w-8 p-0 text-destructive hover:text-destructive"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    )}
+
+                    <div className="space-y-2">
+                      <Label htmlFor={`branch-city-${index}`}>المدينة *</Label>
+                      <Select
+                        value={branch.city}
+                        onValueChange={(value) => updateBranch(index, 'city', value)}
+                      >
+                        <SelectTrigger id={`branch-city-${index}`}>
+                          <SelectValue placeholder="اختر المدينة" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {SAUDI_CITIES.map((city) => (
+                            <SelectItem key={city} value={city}>
+                              {city}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor={`branch-neighborhood-${index}`}>اسم الحي *</Label>
+                      <Input
+                        id={`branch-neighborhood-${index}`}
+                        value={branch.neighborhood}
+                        onChange={(e) => updateBranch(index, 'neighborhood', e.target.value)}
+                        placeholder="حي الياسمين، حي الملقا"
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor={`branch-map-${index}`}>رابط خرائط جوجل</Label>
+                      <Input
+                        id={`branch-map-${index}`}
+                        value={branch.google_map_url}
+                        onChange={(e) => updateBranch(index, 'google_map_url', e.target.value)}
+                        placeholder="https://maps.google.com/..."
+                        dir="ltr"
+                      />
+                    </div>
+                  </Card>
                 ))}
               </div>
-              {form2.formState.errors.cities && (
-                <p className="text-sm text-destructive">{form2.formState.errors.cities.message}</p>
+
+              {form2.formState.errors.branches && (
+                <p className="text-sm text-destructive">
+                  {form2.formState.errors.branches.message}
+                </p>
               )}
             </div>
 
@@ -256,31 +437,39 @@ const OwnerOnboarding = () => {
 
         {currentStep === 3 && (
           <form onSubmit={form3.handleSubmit(handleStep3)} className="space-y-6">
-            <div className="space-y-2">
-              <Label htmlFor="instagram_handle">حساب إنستجرام</Label>
-              <Input
-                id="instagram_handle"
-                {...form3.register('instagram_handle')}
-                placeholder="@restaurant_name"
-              />
-            </div>
+            <div className="space-y-3 p-4 border rounded-lg bg-muted/30">
+              <Label className="text-base font-semibold">معلومات الحسابات (يجب إدخال حساب واحد على الأقل) *</Label>
+              
+              <div className="space-y-2">
+                <Label htmlFor="instagram_handle">حساب إنستجرام</Label>
+                <Input
+                  id="instagram_handle"
+                  {...form3.register('instagram_handle')}
+                  placeholder="@restaurant_name"
+                />
+              </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="tiktok_url">رابط تيك توك</Label>
-              <Input
-                id="tiktok_url"
-                {...form3.register('tiktok_url')}
-                placeholder="https://tiktok.com/@username"
-              />
-            </div>
+              <div className="space-y-2">
+                <Label htmlFor="tiktok_username">اسم المستخدم في تيك توك</Label>
+                <Input
+                  id="tiktok_username"
+                  {...form3.register('tiktok_username')}
+                  placeholder="@username"
+                />
+              </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="snapchat_url">رابط سناب شات</Label>
-              <Input
-                id="snapchat_url"
-                {...form3.register('snapchat_url')}
-                placeholder="https://snapchat.com/add/username"
-              />
+              <div className="space-y-2">
+                <Label htmlFor="snapchat_url">رابط سناب شات</Label>
+                <Input
+                  id="snapchat_url"
+                  {...form3.register('snapchat_url')}
+                  placeholder="https://snapchat.com/add/username"
+                />
+              </div>
+
+              {form3.formState.errors.instagram_handle && (
+                <p className="text-sm text-destructive font-semibold">{form3.formState.errors.instagram_handle.message}</p>
+              )}
             </div>
 
             <div className="space-y-2">

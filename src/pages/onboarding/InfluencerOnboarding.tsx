@@ -34,14 +34,14 @@ const step1Schema = z.object({
 const step2Schema = z.object({
   primary_platforms: z.array(z.string()).min(1, 'اختر منصة واحدة على الأقل'),
   instagram_handle: z.string().optional(),
-  tiktok_url: z.string().url('رابط غير صحيح').optional().or(z.literal('')),
+  tiktok_username: z.string().optional(),
   snapchat_username: z.string().optional(),
   category: z.enum(['food_reviews', 'lifestyle', 'fashion', 'travel', 'comedy', 'general']),
   content_type: z.string().optional(),
 }).refine((data) => {
   // Ensure at least one account detail is provided
   const hasInstagram = data.instagram_handle && data.instagram_handle.length > 0;
-  const hasTiktok = data.tiktok_url && data.tiktok_url.length > 0;
+  const hasTiktok = data.tiktok_username && data.tiktok_username.length > 0;
   const hasSnapchat = data.snapchat_username && data.snapchat_username.length > 0;
   
   return hasInstagram || hasTiktok || hasSnapchat;
@@ -112,7 +112,7 @@ const InfluencerOnboarding = () => {
         bio: finalData.bio,
         cities: finalData.cities,
         primary_platforms: finalData.primary_platforms,
-        tiktok_url: finalData.tiktok_url || null,
+        tiktok_username: finalData.tiktok_username || null,
         snapchat_username: finalData.snapchat_username || null,
         category: finalData.category,
         content_type: finalData.content_type,
@@ -268,11 +268,11 @@ const InfluencerOnboarding = () => {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="tiktok_url">رابط تيك توك</Label>
+                <Label htmlFor="tiktok_username">اسم المستخدم في تيك توك</Label>
                 <Input
-                  id="tiktok_url"
-                  {...form2.register('tiktok_url')}
-                  placeholder="https://tiktok.com/@username"
+                  id="tiktok_username"
+                  {...form2.register('tiktok_username')}
+                  placeholder="@username"
                 />
               </div>
 

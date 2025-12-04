@@ -17,14 +17,14 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { ArrowLeft, ArrowRight, CalendarIcon, Sparkles, Building2, Target } from 'lucide-react';
+import { ArrowLeft, ArrowRight, CalendarIcon, Sparkles, Building2 } from 'lucide-react';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 
 const campaignSchema = z.object({
   title: z.string().trim().min(5, 'العنوان يجب أن يكون 5 أحرف على الأقل').max(200, 'العنوان طويل جداً'),
   description: z.string().trim().min(20, 'الوصف يجب أن يكون 20 حرف على الأقل').max(2000, 'الوصف طويل جداً'),
-  branch_id: z.string().optional(),
+  branch_id: z.string().min(1, 'يجب اختيار فرع للحملة'),
   goal: z.enum(['opening', 'promotions', 'new_products', 'other']),
   goal_details: z.string().trim().max(500).optional(),
   content_requirements: z.string().trim().max(1000).optional(),
@@ -101,15 +101,23 @@ const CreateCampaign = () => {
   const onSubmit = async (data: CampaignFormData) => {
     if (!user || !ownerProfile) return;
     
+    // Validate branch selection
+    if (!data.branch_id) {
+      form.setError('branch_id', { message: 'يجب اختيار فرع للحملة' });
+      setStep(1);
+      return;
+    }
+    
     setLoading(true);
     try {
+      // Step 1: Create the campaign
       const { data: campaign, error } = await supabase
         .from('campaigns')
         .insert([{
           owner_id: user.id,
           title: data.title,
           description: data.description,
-          branch_id: data.branch_id || null,
+          branch_id: data.branch_id,
           goal: data.goal,
           goal_details: data.goal_details || null,
           content_requirements: data.content_requirements || null,
@@ -129,22 +137,34 @@ const CreateCampaign = () => {
 
       toast.success('تم إنشاء الحملة بنجاح!');
       
-      // Trigger AI matching in background
-      toast.info('جاري تحليل المؤثرين المناسبين...');
+      // Step 2: Trigger AI matching in background
+      const matchingToast = toast.loading('جاري تحليل المؤثرين المناسبين...', {
+        description: 'هذا قد يستغرق بضع ثوانٍ'
+      });
+      
       supabase.functions.invoke('match-influencers', {
         body: { campaign_id: campaign.id }
-      }).then(({ error: matchError }) => {
+      }).then(({ data: matchData, error: matchError }) => {
+        toast.dismiss(matchingToast);
+        
         if (matchError) {
           console.error('Matching error:', matchError);
-          toast.error('حدث خطأ في تحليل المؤثرين');
+          toast.error('حدث خطأ في تحليل المؤثرين', {
+            description: 'يمكنك إعادة التحليل من صفحة الحملة'
+          });
         } else {
-          toast.success('تم العثور على مؤثرين مناسبين!');
+          const count = matchData?.suggestions_count || 0;
+          toast.success('تم العثور على مؤثرين مناسبين!', {
+            description: `تم اقتراح ${count} مؤثر للحملة`
+          });
         }
       });
 
+      // Navigate immediately - matching continues in background
       navigate(`/dashboard/owner/campaigns/${campaign.id}`);
-    } catch (error: any) {
-      toast.error(error.message || 'فشل في إنشاء الحملة');
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : 'فشل في إنشاء الحملة';
+      toast.error(errorMessage);
     } finally {
       setLoading(false);
     }
@@ -154,9 +174,8 @@ const CreateCampaign = () => {
     let fieldsToValidate: (keyof CampaignFormData)[] = [];
     
     if (step === 1) {
-      fieldsToValidate = ['title', 'description', 'goal', 'goal_details'];
-    } else if (step === 2) {
-      fieldsToValidate = ['target_followers_min', 'target_followers_max', 'target_engagement_min'];
+      // Include branch_id in validation - it's required for the matching algorithm
+      fieldsToValidate = ['title', 'description', 'branch_id', 'goal', 'goal_details'];
     }
 
     const isValid = await form.trigger(fieldsToValidate);
@@ -199,7 +218,7 @@ const CreateCampaign = () => {
         <div className="mb-8">
           <h2 className="text-3xl font-bold mb-4">إنشاء حملة جديدة</h2>
           <div className="flex items-center gap-2">
-            {[1, 2, 3].map((s) => (
+            {[1, 2].map((s) => (
               <div key={s} className="flex items-center flex-1">
                 <div
                   className={cn(
@@ -212,7 +231,6 @@ const CreateCampaign = () => {
           </div>
           <div className="flex justify-between mt-2 text-sm text-muted-foreground">
             <span>تفاصيل الحملة</span>
-            <span>الجمهور المستهدف</span>
             <span>الميزانية والجدولة</span>
           </div>
         </div>
@@ -253,26 +271,54 @@ const CreateCampaign = () => {
                   )}
                 </div>
 
-                {branches.length > 0 && (
-                  <div className="space-y-2">
-                    <Label htmlFor="branch_id">الفرع (اختياري)</Label>
-                    <Select onValueChange={(value) => form.setValue('branch_id', value)}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="اختر فرع محدد للحملة" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {branches.map((branch) => (
-                          <SelectItem key={branch.id} value={branch.id}>
-                            <div className="flex items-center gap-2">
-                              <Building2 className="h-4 w-4" />
-                              {branch.city} - {branch.address}
-                            </div>
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                )}
+                <div className="space-y-2">
+                  <Label htmlFor="branch_id">الفرع * (مطلوب لتحليل المؤثرين)</Label>
+                  {branches.length > 0 ? (
+                    <>
+                      <Select 
+                        onValueChange={(value) => {
+                          form.setValue('branch_id', value);
+                          form.clearErrors('branch_id');
+                        }}
+                        value={form.watch('branch_id')}
+                      >
+                        <SelectTrigger className={form.formState.errors.branch_id ? 'border-destructive' : ''}>
+                          <SelectValue placeholder="اختر فرع محدد للحملة" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {branches.map((branch) => (
+                            <SelectItem key={branch.id} value={branch.id}>
+                              <div className="flex items-center gap-2">
+                                <Building2 className="h-4 w-4" />
+                                {branch.city} {branch.neighborhood ? `- ${branch.neighborhood}` : ''}
+                              </div>
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      {form.formState.errors.branch_id && (
+                        <p className="text-sm text-destructive">{form.formState.errors.branch_id.message}</p>
+                      )}
+                      <p className="text-xs text-muted-foreground">
+                        سيتم اقتراح المؤثرين بناءً على مدينة الفرع المحدد
+                      </p>
+                    </>
+                  ) : (
+                    <div className="p-4 rounded-lg bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800">
+                      <p className="text-sm text-amber-800 dark:text-amber-200">
+                        لا توجد فروع مضافة. يرجى إضافة فرع واحد على الأقل من إعدادات المنشأة.
+                      </p>
+                      <Button
+                        type="button"
+                        variant="link"
+                        className="text-amber-700 dark:text-amber-300 p-0 h-auto mt-1"
+                        onClick={() => navigate('/onboarding/owner')}
+                      >
+                        إضافة فرع جديد ←
+                      </Button>
+                    </div>
+                  )}
+                </div>
 
                 <div className="space-y-2">
                   <Label htmlFor="goal">هدف الحملة *</Label>
@@ -314,57 +360,8 @@ const CreateCampaign = () => {
               </div>
             )}
 
-            {/* Step 2: Target Audience */}
+            {/* Step 2: Budget & Schedule */}
             {step === 2 && (
-              <div className="space-y-6 animate-fade-in">
-                <div className="flex items-center gap-2 mb-6">
-                  <Target className="h-5 w-5 text-primary" />
-                  <h3 className="text-xl font-semibold">المؤثرون المستهدفون</h3>
-                </div>
-
-                <div className="grid md:grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="target_followers_min">الحد الأدنى للمتابعين</Label>
-                    <Input
-                      id="target_followers_min"
-                      type="number"
-                      placeholder="10000"
-                      {...form.register('target_followers_min', { valueAsNumber: true })}
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="target_followers_max">الحد الأقصى للمتابعين</Label>
-                    <Input
-                      id="target_followers_max"
-                      type="number"
-                      placeholder="100000"
-                      {...form.register('target_followers_max', { valueAsNumber: true })}
-                    />
-                  </div>
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="target_engagement_min">الحد الأدنى لمعدل التفاعل (%)</Label>
-                  <Input
-                    id="target_engagement_min"
-                    type="number"
-                    step="0.1"
-                    placeholder="3.0"
-                    {...form.register('target_engagement_min', { valueAsNumber: true })}
-                  />
-                </div>
-
-                <div className="bg-muted/50 p-4 rounded-lg">
-                  <p className="text-sm text-muted-foreground">
-                    💡 <strong>نصيحة:</strong> سيقوم الذكاء الاصطناعي تلقائياً بمطابقة حملتك مع المؤثرين ذوي الصلة بناءً على معاييرك. ستتمكن من مراجعتهم ودعوتهم بعد إنشاء الحملة.
-                  </p>
-                </div>
-              </div>
-            )}
-
-            {/* Step 3: Budget & Schedule */}
-            {step === 3 && (
               <div className="space-y-6 animate-fade-in">
                 <div className="flex items-center gap-2 mb-6">
                   <Sparkles className="h-5 w-5 text-primary" />
@@ -440,8 +437,14 @@ const CreateCampaign = () => {
 
                 <div className="bg-primary/5 border border-primary/20 p-4 rounded-lg">
                   <p className="text-sm">
-                    <strong>ملاحظة:</strong> بعد إنشاء الحملة، سيتم تشغيل خوارزمية الذكاء الاصطناعي لاقتراح أفضل المؤثرين. يمكنك مراجعة الاقتراحات وإرسال الدعوات.
+                    <strong>ملاحظة:</strong> بعد إنشاء الحملة، سيتم تشغيل خوارزمية المطابقة لاقتراح أفضل المؤثرين بناءً على:
                   </p>
+                  <ul className="text-sm mt-2 space-y-1 list-disc list-inside text-muted-foreground">
+                    <li>المدينة (يجب اختيار فرع)</li>
+                    <li>الميزانية المتاحة</li>
+                    <li>نوع المحتوى ومعدل المشاهدات</li>
+                    {form.watch('add_bonus_hospitality') && <li>+ 5 مؤثرين إضافيين (ضيافة مجانية)</li>}
+                  </ul>
                 </div>
               </div>
             )}
@@ -457,7 +460,7 @@ const CreateCampaign = () => {
                 <div />
               )}
 
-              {step < 3 ? (
+              {step < 2 ? (
                 <Button type="button" onClick={nextStep}>
                   التالي
                   <ArrowRight className="h-4 w-4 ms-2" />

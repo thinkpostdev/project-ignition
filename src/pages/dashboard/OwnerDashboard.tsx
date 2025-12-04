@@ -3,7 +3,7 @@ import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { LanguageSwitcher } from '@/components/LanguageSwitcher';
-import { Plus, TrendingUp, Users, DollarSign } from 'lucide-react';
+import { Plus, TrendingUp, Users, DollarSign, Settings } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
@@ -95,6 +95,12 @@ const OwnerDashboard = () => {
             InfluencerHub
           </h1>
           <div className="flex items-center gap-3">
+            <Button variant="outline" size="sm" asChild>
+              <Link to="/settings/owner">
+                <Settings className="h-4 w-4 me-2" />
+                الإعدادات
+              </Link>
+            </Button>
             <LanguageSwitcher />
             <Button variant="ghost" size="sm" onClick={handleLogout}>
               {t('common.logout')}
@@ -159,14 +165,59 @@ const OwnerDashboard = () => {
         {/* Campaigns Table */}
         <Card className="p-6">
           <h3 className="text-xl font-semibold mb-4">حملاتي</h3>
-          <div className="text-center py-12 text-muted-foreground">
-            <p>لا توجد حملات حالياً</p>
-            <Button variant="link" className="mt-2" asChild>
-              <Link to="/dashboard/owner/campaigns/new">
-                إنشاء حملة جديدة
-              </Link>
-            </Button>
-          </div>
+          {campaigns.length > 0 ? (
+            <div className="space-y-4">
+              {campaigns.map((campaign) => (
+                <Link 
+                  key={campaign.id} 
+                  to={`/dashboard/owner/campaigns/${campaign.id}`}
+                  className="block"
+                >
+                  <Card className="p-4 hover:shadow-md transition-shadow cursor-pointer border-l-4 border-l-primary">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <h4 className="font-semibold text-lg">{campaign.title}</h4>
+                        <p className="text-sm text-muted-foreground mt-1">
+                          {campaign.description?.slice(0, 100)}{campaign.description?.length > 100 ? '...' : ''}
+                        </p>
+                        <div className="flex items-center gap-4 mt-2 text-sm text-muted-foreground">
+                          <span>الميزانية: {campaign.budget?.toLocaleString()} ر.س</span>
+                          {campaign.created_at && (
+                            <span>تاريخ الإنشاء: {new Date(campaign.created_at).toLocaleDateString('ar-SA')}</span>
+                          )}
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className={`px-3 py-1 rounded-full text-xs font-medium ${
+                          campaign.status === 'in_progress' ? 'bg-green-100 text-green-700' :
+                          campaign.status === 'plan_ready' ? 'bg-blue-100 text-blue-700' :
+                          campaign.status === 'waiting_influencer_responses' ? 'bg-yellow-100 text-yellow-700' :
+                          campaign.status === 'completed' ? 'bg-gray-100 text-gray-700' :
+                          'bg-primary/10 text-primary'
+                        }`}>
+                          {campaign.status === 'in_progress' ? 'جارية' :
+                           campaign.status === 'plan_ready' ? 'الخطة جاهزة' :
+                           campaign.status === 'waiting_influencer_responses' ? 'بانتظار الردود' :
+                           campaign.status === 'completed' ? 'مكتملة' :
+                           campaign.status === 'draft' ? 'مسودة' :
+                           campaign.status || 'جديدة'}
+                        </span>
+                      </div>
+                    </div>
+                  </Card>
+                </Link>
+              ))}
+            </div>
+          ) : (
+            <div className="text-center py-12 text-muted-foreground">
+              <p>لا توجد حملات حالياً</p>
+              <Button variant="link" className="mt-2" asChild>
+                <Link to="/dashboard/owner/campaigns/new">
+                  إنشاء حملة جديدة
+                </Link>
+              </Button>
+            </div>
+          )}
         </Card>
       </div>
     </div>

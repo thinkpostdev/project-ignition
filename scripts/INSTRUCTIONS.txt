@@ -1,0 +1,51 @@
+══════════════════════════════════════════════════════════════
+  CREATE 50 FAKE INFLUENCER ACCOUNTS - INSTRUCTIONS
+══════════════════════════════════════════════════════════════
+
+📋 STEP 1: Get Your Service Role Key
+────────────────────────────────────
+1. Open this URL in your browser:
+   https://supabase.com/dashboard/project/nfzndwmccyejwwfbwbpz/settings/api
+
+2. Find "Project API keys" section
+3. Copy the "service_role" key (NOT the anon key!)
+
+
+📋 STEP 2: Set Environment Variable
+────────────────────────────────────
+Run this command in your terminal:
+
+export SUPABASE_SERVICE_ROLE_KEY="PASTE_YOUR_SERVICE_ROLE_KEY_HERE"
+
+(Replace PASTE_YOUR_SERVICE_ROLE_KEY_HERE with your actual key)
+
+
+📋 STEP 3: Run the Script
+──────────────────────────
+npm run create-fake-influencers
+
+
+✅ WHAT YOU'LL GET:
+──────────────────────────
+• 50 fake influencer accounts with COMPLETE profiles
+• Names: سعد خالد - مزيف1, سعد خالد - مزيف2, ... سعد خالد - مزيف50
+• Cities: Random (أبها or خميس مشيط)
+• Platform: TikTok only
+• 70% paid collaboration, 30% hospitality
+• Complete bio, follower counts, and engagement rates
+• All profile fields filled (ready to use immediately!)
+
+
+🔐 LOGIN CREDENTIALS:
+──────────────────────────
+Email: fake-influencer-1@test.com to fake-influencer-50@test.com
+Password: Test123456!
+
+
+⚠️  IMPORTANT:
+──────────────────────────
+• Keep your service role key SECRET
+• Don't commit it to git
+• This key has full admin access to your database
+══════════════════════════════════════════════════════════════
+

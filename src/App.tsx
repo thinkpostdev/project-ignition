@@ -16,6 +16,8 @@ import CreateCampaign from './pages/dashboard/owner/CreateCampaign';
 import CampaignDetail from './pages/dashboard/owner/CampaignDetail';
 import OwnerOnboarding from './pages/onboarding/OwnerOnboarding';
 import InfluencerOnboarding from './pages/onboarding/InfluencerOnboarding';
+import OwnerProfile from './pages/settings/OwnerProfile';
+import InfluencerProfile from './pages/settings/InfluencerProfile';
 import NotFound from './pages/NotFound';
 
 const queryClient = new QueryClient();
@@ -63,6 +65,22 @@ const App = () => (
               element={
                 <ProtectedRoute requiredRole="influencer">
                   <InfluencerDashboard />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/settings/owner" 
+              element={
+                <ProtectedRoute requiredRole="owner">
+                  <OwnerProfile />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/settings/influencer" 
+              element={
+                <ProtectedRoute requiredRole="influencer">
+                  <InfluencerProfile />
                 </ProtectedRoute>
               } 
             />

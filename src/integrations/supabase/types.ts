@@ -21,6 +21,7 @@ export type Database = {
           created_at: string | null
           google_map_url: string | null
           id: string
+          neighborhood: string | null
           owner_id: string
           updated_at: string | null
         }
@@ -30,6 +31,7 @@ export type Database = {
           created_at?: string | null
           google_map_url?: string | null
           id?: string
+          neighborhood?: string | null
           owner_id: string
           updated_at?: string | null
         }
@@ -39,6 +41,7 @@ export type Database = {
           created_at?: string | null
           google_map_url?: string | null
           id?: string
+          neighborhood?: string | null
           owner_id?: string
           updated_at?: string | null
         }
@@ -59,6 +62,7 @@ export type Database = {
           min_price: number | null
           name: string | null
           platform: string | null
+          scheduled_date: string | null
           selected: boolean | null
           type_label: string | null
         }
@@ -76,6 +80,7 @@ export type Database = {
           min_price?: number | null
           name?: string | null
           platform?: string | null
+          scheduled_date?: string | null
           selected?: boolean | null
           type_label?: string | null
         }
@@ -93,6 +98,7 @@ export type Database = {
           min_price?: number | null
           name?: string | null
           platform?: string | null
+          scheduled_date?: string | null
           selected?: boolean | null
           type_label?: string | null
         }
@@ -287,7 +293,14 @@ export type Database = {
           id: string
           influencer_id: string
           offered_price: number | null
+          proof_approved_at: string | null
+          proof_deadline_at: string | null
+          proof_rejected_reason: string | null
+          proof_status: Database["public"]["Enums"]["proof_status"] | null
+          proof_submitted_at: string | null
+          proof_url: string | null
           responded_at: string | null
+          scheduled_date: string | null
           status: Database["public"]["Enums"]["invitation_status"] | null
         }
         Insert: {
@@ -296,7 +309,14 @@ export type Database = {
           id?: string
           influencer_id: string
           offered_price?: number | null
+          proof_approved_at?: string | null
+          proof_deadline_at?: string | null
+          proof_rejected_reason?: string | null
+          proof_status?: Database["public"]["Enums"]["proof_status"] | null
+          proof_submitted_at?: string | null
+          proof_url?: string | null
           responded_at?: string | null
+          scheduled_date?: string | null
           status?: Database["public"]["Enums"]["invitation_status"] | null
         }
         Update: {
@@ -305,7 +325,14 @@ export type Database = {
           id?: string
           influencer_id?: string
           offered_price?: number | null
+          proof_approved_at?: string | null
+          proof_deadline_at?: string | null
+          proof_rejected_reason?: string | null
+          proof_status?: Database["public"]["Enums"]["proof_status"] | null
+          proof_submitted_at?: string | null
+          proof_url?: string | null
           responded_at?: string | null
+          scheduled_date?: string | null
           status?: Database["public"]["Enums"]["invitation_status"] | null
         }
         Relationships: [
@@ -350,6 +377,7 @@ export type Database = {
           primary_platforms: string[] | null
           snapchat_username: string | null
           tiktok_url: string | null
+          tiktok_username: string | null
           type_label: string | null
           updated_at: string
           user_id: string
@@ -385,6 +413,7 @@ export type Database = {
           primary_platforms?: string[] | null
           snapchat_username?: string | null
           tiktok_url?: string | null
+          tiktok_username?: string | null
           type_label?: string | null
           updated_at?: string
           user_id: string
@@ -420,6 +449,7 @@ export type Database = {
           primary_platforms?: string[] | null
           snapchat_username?: string | null
           tiktok_url?: string | null
+          tiktok_username?: string | null
           type_label?: string | null
           updated_at?: string
           user_id?: string
@@ -521,6 +551,7 @@ export type Database = {
           sub_category: string | null
           target_audience: string | null
           tiktok_url: string | null
+          tiktok_username: string | null
           updated_at: string
           user_id: string
         }
@@ -539,6 +570,7 @@ export type Database = {
           sub_category?: string | null
           target_audience?: string | null
           tiktok_url?: string | null
+          tiktok_username?: string | null
           updated_at?: string
           user_id: string
         }
@@ -557,6 +589,7 @@ export type Database = {
           sub_category?: string | null
           target_audience?: string | null
           tiktok_url?: string | null
+          tiktok_username?: string | null
           updated_at?: string
           user_id?: string
         }
@@ -651,6 +684,7 @@ export type Database = {
       main_type: "restaurant" | "cafe"
       offer_status: "pending" | "accepted" | "rejected" | "completed"
       price_level: "cheap" | "moderate" | "expensive"
+      proof_status: "pending_submission" | "submitted" | "approved" | "rejected"
       sender_type: "owner" | "influencer"
     }
     CompositeTypes: {
@@ -812,6 +846,7 @@ export const Constants = {
       main_type: ["restaurant", "cafe"],
       offer_status: ["pending", "accepted", "rejected", "completed"],
       price_level: ["cheap", "moderate", "expensive"],
+      proof_status: ["pending_submission", "submitted", "approved", "rejected"],
       sender_type: ["owner", "influencer"],
     },
   },

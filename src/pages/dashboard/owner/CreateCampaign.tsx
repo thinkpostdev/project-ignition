@@ -137,14 +137,16 @@ const CreateCampaign = () => {
 
       toast.success('تم إنشاء الحملة بنجاح!');
       
-      // Step 2: Trigger AI matching in background
+      // Step 2: Trigger AI matching and WAIT for it to complete
       const matchingToast = toast.loading('جاري تحليل المؤثرين المناسبين...', {
         description: 'هذا قد يستغرق بضع ثوانٍ'
       });
       
-      supabase.functions.invoke('match-influencers', {
-        body: { campaign_id: campaign.id }
-      }).then(({ data: matchData, error: matchError }) => {
+      try {
+        const { data: matchData, error: matchError } = await supabase.functions.invoke('match-influencers', {
+          body: { campaign_id: campaign.id }
+        });
+        
         toast.dismiss(matchingToast);
         
         if (matchError) {
@@ -158,9 +160,13 @@ const CreateCampaign = () => {
             description: `تم اقتراح ${count} مؤثر للحملة`
           });
         }
-      });
+      } catch (matchError) {
+        console.error('Matching error:', matchError);
+        toast.dismiss(matchingToast);
+        toast.warning('سيتم تحليل المؤثرين في الخلفية');
+      }
 
-      // Navigate immediately - matching continues in background
+      // Navigate after matching completes (or fails)
       navigate(`/dashboard/owner/campaigns/${campaign.id}`);
     } catch (error: unknown) {
       const errorMessage = error instanceof Error ? error.message : 'فشل في إنشاء الحملة';
@@ -381,47 +387,32 @@ const CreateCampaign = () => {
                   )}
                 </div>
 
-                <div className="grid md:grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label>تاريخ البدء</Label>
-                    <Popover>
-                      <PopoverTrigger asChild>
-                        <Button
-                          variant="outline"
-                          className={cn(
-                            'w-full justify-start text-left font-normal',
-                            !form.watch('start_date') && 'text-muted-foreground'
-                          )}
-                        >
-                          <CalendarIcon className="me-2 h-4 w-4" />
-                          {form.watch('start_date') ? format(form.watch('start_date')!, 'PPP') : 'اختر تاريخ'}
-                        </Button>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-auto p-0" align="start">
-                        <Calendar
-                          mode="single"
-                          selected={form.watch('start_date')}
-                          onSelect={(date) => form.setValue('start_date', date)}
-                          disabled={(date) => date < new Date()}
-                          initialFocus
-                          className="pointer-events-auto"
-                        />
-                      </PopoverContent>
-                    </Popover>
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="duration_days">مدة الحملة (بالأيام)</Label>
-                    <Input
-                      id="duration_days"
-                      type="number"
-                      placeholder="10"
-                      {...form.register('duration_days', { valueAsNumber: true })}
-                    />
-                    {form.formState.errors.duration_days && (
-                      <p className="text-sm text-destructive">{form.formState.errors.duration_days.message}</p>
-                    )}
-                  </div>
+                <div className="space-y-2">
+                  <Label>تاريخ البدء</Label>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant="outline"
+                        className={cn(
+                          'w-full justify-start text-left font-normal',
+                          !form.watch('start_date') && 'text-muted-foreground'
+                        )}
+                      >
+                        <CalendarIcon className="me-2 h-4 w-4" />
+                        {form.watch('start_date') ? format(form.watch('start_date')!, 'PPP') : 'اختر تاريخ'}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                      <Calendar
+                        mode="single"
+                        selected={form.watch('start_date')}
+                        onSelect={(date) => form.setValue('start_date', date)}
+                        disabled={(date) => date < new Date()}
+                        initialFocus
+                        className="pointer-events-auto"
+                      />
+                    </PopoverContent>
+                  </Popover>
                 </div>
 
                 <div className="flex items-center space-x-2 space-x-reverse p-4 bg-muted/30 rounded-lg">

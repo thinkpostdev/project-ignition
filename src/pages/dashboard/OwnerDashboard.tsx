@@ -180,10 +180,10 @@ const OwnerDashboard = () => {
                         <p className="text-sm text-muted-foreground mt-1">
                           {campaign.description?.slice(0, 100)}{campaign.description?.length > 100 ? '...' : ''}
                         </p>
-                        <div className="flex items-center gap-4 mt-2 text-sm text-muted-foreground">
+                          <div className="flex items-center gap-4 mt-2 text-sm text-muted-foreground">
                           <span>الميزانية: {campaign.budget?.toLocaleString()} ر.س</span>
                           {campaign.created_at && (
-                            <span>تاريخ الإنشاء: {new Date(campaign.created_at).toLocaleDateString('ar-SA')}</span>
+                            <span>تاريخ الإنشاء: {new Date(campaign.created_at).toLocaleDateString('ar-SA', { calendar: 'gregory' })}</span>
                           )}
                         </div>
                       </div>

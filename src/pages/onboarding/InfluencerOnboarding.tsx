@@ -123,12 +123,13 @@ const InfluencerOnboarding = () => {
         accept_paid: finalData.collaboration_type === 'paid',
         min_price: finalData.min_price,
         max_price: finalData.max_price,
+        is_approved: false,
       }]);
 
       if (error) throw error;
 
       toast.success('تم إنشاء الملف الشخصي بنجاح');
-      navigate('/dashboard/influencer');
+      navigate('/pending-approval');
     } catch (error: any) {
       toast.error(error.message || 'حدث خطأ أثناء حفظ البيانات');
     } finally {

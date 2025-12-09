@@ -7,7 +7,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { LanguageSwitcher } from '@/components/LanguageSwitcher';
-import { Wallet, Briefcase, Mail, CheckCircle2, X, Clock, Calendar, Upload, Link as LinkIcon, AlertCircle, Settings } from 'lucide-react';
+import { Wallet, Briefcase, Mail, CheckCircle2, X, Clock, Calendar, Upload, Link as LinkIcon, AlertCircle, Settings, Info, DollarSign, FileText } from 'lucide-react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
@@ -27,6 +27,7 @@ interface Invitation {
   proof_status: ProofStatus | null;
   proof_submitted_at: string | null;
   proof_rejected_reason: string | null;
+  offered_price: number | null;
   campaigns: {
     id: string;
     title: string;
@@ -34,6 +35,8 @@ interface Invitation {
     budget: number | null;
     duration_days: number | null;
     goal: string | null;
+    goal_details: string | null;
+    content_requirements: string | null;
     owner_id: string | null;
     owner_profiles: {
       business_name: string | null;
@@ -59,6 +62,7 @@ const InfluencerDashboard = () => {
     pendingInvitations: 0,
   });
   const [proofUploadDialogOpen, setProofUploadDialogOpen] = useState(false);
+  const [campaignDetailsDialogOpen, setCampaignDetailsDialogOpen] = useState(false);
   const [selectedInvitation, setSelectedInvitation] = useState<Invitation | null>(null);
   const [proofUrl, setProofUrl] = useState('');
   const [submittingProof, setSubmittingProof] = useState(false);
@@ -102,7 +106,7 @@ const InfluencerDashboard = () => {
     try {
       console.log('[InfluencerDashboard] Fetching invitations for profile:', influencerProfileId);
       
-      // First get invitations with campaign and branch data
+      // First get invitations with campaign data
       const { data, error } = await supabase
         .from('influencer_invitations')
         .select(`
@@ -114,11 +118,10 @@ const InfluencerDashboard = () => {
             budget,
             duration_days,
             goal,
+            goal_details,
+            content_requirements,
             owner_id,
-            branches (
-              city,
-              neighborhood
-            )
+            branch_id
           )
         `)
         .eq('influencer_id', influencerProfileId)
@@ -147,18 +150,42 @@ const InfluencerDashboard = () => {
         }, {} as Record<string, string>);
       }
 
-      // Merge owner data into invitations
+      // Fetch branch details for each unique branch_id
+      const branchIds = [...new Set((data || []).map(inv => inv.campaigns?.branch_id).filter(Boolean))] as string[];
+      let branchMap: Record<string, { city: string | null; neighborhood: string | null }> = {};
+      
+      if (branchIds.length > 0) {
+        const { data: branches } = await supabase
+          .from('branches')
+          .select('id, city, neighborhood')
+          .in('id', branchIds);
+        
+        branchMap = (branches || []).reduce((acc, b) => {
+          acc[b.id] = {
+            city: b.city,
+            neighborhood: b.neighborhood
+          };
+          return acc;
+        }, {} as Record<string, { city: string | null; neighborhood: string | null }>);
+      }
+
+      // Merge owner and branch data into invitations
       const invitationsWithOwners = (data || []).map(inv => ({
         ...inv,
         campaigns: inv.campaigns ? {
           ...inv.campaigns,
           owner_profiles: inv.campaigns.owner_id ? {
             business_name: ownerMap[inv.campaigns.owner_id] || null
-          } : null
+          } : null,
+          branches: inv.campaigns.branch_id ? branchMap[inv.campaigns.branch_id] : null
         } : null
       }));
 
       console.log('[InfluencerDashboard] Processed invitations:', invitationsWithOwners);
+      console.log('[InfluencerDashboard] Sample invitation campaigns data:', invitationsWithOwners[0]?.campaigns);
+      console.log('[InfluencerDashboard] Branch map:', branchMap);
+      console.log('[InfluencerDashboard] First campaign branch_id:', invitationsWithOwners[0]?.campaigns?.branch_id);
+      console.log('[InfluencerDashboard] First campaign branches:', invitationsWithOwners[0]?.campaigns?.branches);
 
       setInvitations(invitationsWithOwners as Invitation[]);
 
@@ -196,16 +223,55 @@ const InfluencerDashboard = () => {
 
   const handleRejectInvitation = async (invitationId: string) => {
     try {
-      const { error } = await supabase
+      // Find the invitation to get campaign_id and influencer_id
+      const invitation = invitations.find(inv => inv.id === invitationId);
+      if (!invitation) {
+        toast.error('الدعوة غير موجودة');
+        return;
+      }
+
+      // Update invitation status to declined
+      const { error: updateError } = await supabase
         .from('influencer_invitations')
-        .update({ status: 'rejected' })
+        .update({ 
+          status: 'declined',
+          responded_at: new Date().toISOString()
+        })
         .eq('id', invitationId);
 
-      if (error) throw error;
+      if (updateError) throw updateError;
 
-      toast.success('تم رفض الدعوة');
+      // Call Edge Function to handle automatic replacement
+      const { data: replacementData, error: replacementError } = await supabase.functions.invoke(
+        'handle-invitation-rejection',
+        {
+          body: {
+            campaign_id: invitation.campaign_id,
+            rejected_influencer_id: invitation.influencer_id,
+          },
+        }
+      );
+
+      console.log('[REJECTION] Replacement result:', replacementData);
+
+      if (replacementError) {
+        console.error('[REJECTION] Replacement error:', replacementError);
+        toast.success('تم رفض الدعوة');
+      } else if (replacementData) {
+        if (replacementData.replaced) {
+          toast.success('تم رفض الدعوة وإرسال دعوة لمؤثر بديل');
+          console.log('[REJECTION] Replacement found:', replacementData.replacement);
+        } else {
+          toast.success('تم رفض الدعوة');
+          console.log('[REJECTION] No replacement available:', replacementData.message);
+        }
+      } else {
+        toast.success('تم رفض الدعوة');
+      }
+
       fetchInvitations(influencerProfile.id);
     } catch (error) {
+      console.error('Error rejecting invitation:', error);
       toast.error('فشل رفض الدعوة');
     }
   };
@@ -254,6 +320,24 @@ const InfluencerDashboard = () => {
     } finally {
       setSubmittingProof(false);
     }
+  };
+
+  const handleOpenCampaignDetails = (invitation: Invitation) => {
+    console.log('[Campaign Details] Opening dialog for invitation:', invitation);
+    console.log('[Campaign Details] Campaign data:', invitation.campaigns);
+    setSelectedInvitation(invitation);
+    setCampaignDetailsDialogOpen(true);
+  };
+
+  const getGoalLabel = (goal: string | null) => {
+    if (!goal) return null;
+    const labels: Record<string, string> = {
+      opening: 'افتتاح',
+      promotions: 'عروض ترويجية',
+      new_products: 'منتجات جديدة',
+      other: 'أخرى',
+    };
+    return labels[goal] || goal;
   };
 
   const getProofStatusBadge = (status: ProofStatus | null) => {
@@ -377,54 +461,74 @@ const InfluencerDashboard = () => {
                 .filter(inv => inv.status === 'pending')
                 .map((invitation) => (
                   <Card key={invitation.id} className="p-4 hover:border-primary transition-colors border-r-4 border-r-primary">
-                    <div className="flex items-start justify-between gap-4">
-                      <div className="flex-1 space-y-2">
-                        <div className="flex items-center gap-2">
-                          <h4 className="font-semibold">
-                            {invitation.campaigns?.owner_profiles?.business_name || invitation.campaigns?.title || 'حملة جديدة'}
-                          </h4>
-                          {invitation.campaigns?.goal && (
-                            <Badge>{invitation.campaigns.goal}</Badge>
-                          )}
-                        </div>
-                        <p className="text-sm text-muted-foreground">
-                          {invitation.campaigns?.branches?.neighborhood && `${invitation.campaigns.branches.neighborhood}، `}
-                          {invitation.campaigns?.branches?.city || 'غير محدد'}
-                          {invitation.campaigns?.duration_days && ` • ${invitation.campaigns.duration_days} يوم`}
-                        </p>
-                        {invitation.campaigns?.description && (
-                          <p className="text-sm text-muted-foreground">
-                            {invitation.campaigns.description.slice(0, 100)}
-                            {invitation.campaigns.description.length > 100 ? '...' : ''}
+                    <div className="space-y-3">
+                      <div className="flex items-start justify-between gap-4">
+                        <div className="flex-1 space-y-2">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <h4 className="font-semibold text-lg">
+                              {invitation.campaigns?.owner_profiles?.business_name || invitation.campaigns?.title || 'حملة جديدة'}
+                            </h4>
+                            {invitation.campaigns?.goal && (
+                              <Badge variant="secondary">{getGoalLabel(invitation.campaigns.goal)}</Badge>
+                            )}
+                          </div>
+                          <p className="text-sm text-muted-foreground flex items-center gap-1">
+                            📍 {invitation.campaigns?.branches?.neighborhood && `${invitation.campaigns.branches.neighborhood}، `}
+                            {invitation.campaigns?.branches?.city || 'غير محدد'}
                           </p>
-                        )}
-                        <div className="flex items-center gap-4">
-                          {invitation.campaigns?.budget && (
-                            <span className="text-lg font-bold text-success">
-                              {invitation.campaigns.budget.toLocaleString()} ر.س
-                            </span>
+                          {invitation.campaigns?.description && (
+                            <p className="text-sm text-muted-foreground leading-relaxed">
+                              {invitation.campaigns.description.slice(0, 150)}
+                              {invitation.campaigns.description.length > 150 ? '...' : ''}
+                            </p>
                           )}
-                          <span className="text-sm text-muted-foreground flex items-center gap-1">
-                            <Clock className="h-4 w-4" />
-                            {new Date(invitation.created_at).toLocaleDateString('ar-SA')}
-                          </span>
-                        </div>
-                        {/* Scheduled Visit Date */}
-                        {invitation.scheduled_date && (
-                          <div className="mt-2 flex items-center gap-2 text-sm bg-purple-50 dark:bg-purple-900/20 rounded-lg px-3 py-2">
-                            <Calendar className="h-4 w-4 text-purple-600" />
-                            <span className="text-purple-700 dark:text-purple-300 font-medium">
-                              تاريخ الزيارة: {new Date(invitation.scheduled_date).toLocaleDateString('ar-SA', {
-                                weekday: 'long',
-                                year: 'numeric',
-                                month: 'long',
-                                day: 'numeric'
-                              })}
+                          <div className="flex items-center gap-4 flex-wrap">
+                            {invitation.offered_price && invitation.offered_price > 0 ? (
+                              <div className="flex items-center gap-1">
+                                <DollarSign className="h-4 w-4 text-success" />
+                                <span className="text-lg font-bold text-success">
+                                  {invitation.offered_price.toLocaleString()} ر.س
+                                </span>
+                              </div>
+                            ) : (
+                              <Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-200">
+                                ضيافة مجانية
+                              </Badge>
+                            )}
+                            <span className="text-sm text-muted-foreground flex items-center gap-1">
+                              <Clock className="h-4 w-4" />
+                              {new Date(invitation.created_at).toLocaleDateString('ar-SA', { calendar: 'gregory' })}
                             </span>
                           </div>
-                        )}
+                          {/* Scheduled Visit Date */}
+                          {invitation.scheduled_date && (
+                            <div className="flex items-center gap-2 text-sm bg-purple-50 dark:bg-purple-900/20 rounded-lg px-3 py-2">
+                              <Calendar className="h-4 w-4 text-purple-600" />
+                              <span className="text-purple-700 dark:text-purple-300 font-medium">
+                                تاريخ الزيارة: {new Date(invitation.scheduled_date).toLocaleDateString('ar-SA', {
+                                  calendar: 'gregory',
+                                  weekday: 'long',
+                                  year: 'numeric',
+                                  month: 'long',
+                                  day: 'numeric'
+                                })}
+                              </span>
+                            </div>
+                          )}
+                        </div>
                       </div>
-                      <div className="flex gap-2">
+                      
+                      {/* Action Buttons */}
+                      <div className="flex items-center gap-2 pt-2 border-t">
+                        <Button 
+                          size="sm" 
+                          variant="outline"
+                          onClick={() => handleOpenCampaignDetails(invitation)}
+                          className="flex-1"
+                        >
+                          <Info className="h-4 w-4 me-1" />
+                          عرض التفاصيل
+                        </Button>
                         <Button 
                           size="sm" 
                           variant="outline"
@@ -479,10 +583,9 @@ const InfluencerDashboard = () => {
                             </Badge>
                             {getProofStatusBadge(invitation.proof_status)}
                           </div>
-                          <p className="text-sm text-muted-foreground">
-                            {invitation.campaigns?.branches?.neighborhood && `${invitation.campaigns.branches.neighborhood}، `}
+                          <p className="text-sm text-muted-foreground flex items-center gap-1">
+                            📍 {invitation.campaigns?.branches?.neighborhood && `${invitation.campaigns.branches.neighborhood}، `}
                             {invitation.campaigns?.branches?.city || 'غير محدد'}
-                            {invitation.campaigns?.duration_days && ` • ${invitation.campaigns.duration_days} يوم`}
                           </p>
                           {invitation.campaigns?.description && (
                             <p className="text-sm text-muted-foreground">
@@ -490,27 +593,44 @@ const InfluencerDashboard = () => {
                               {invitation.campaigns.description.length > 100 ? '...' : ''}
                             </p>
                           )}
-                          <div className="flex items-center gap-4">
-                            {invitation.campaigns?.budget && (
-                              <span className="text-lg font-bold text-success">
-                                {invitation.campaigns.budget.toLocaleString()} ر.س
-                              </span>
+                          <div className="flex items-center gap-4 flex-wrap">
+                            {invitation.offered_price && invitation.offered_price > 0 ? (
+                              <div className="flex items-center gap-1">
+                                <DollarSign className="h-4 w-4 text-success" />
+                                <span className="text-lg font-bold text-success">
+                                  {invitation.offered_price.toLocaleString()} ر.س
+                                </span>
+                              </div>
+                            ) : (
+                              <Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-200">
+                                ضيافة مجانية
+                              </Badge>
                             )}
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              onClick={() => handleOpenCampaignDetails(invitation)}
+                              className="text-primary hover:text-primary/80"
+                            >
+                              <Info className="h-4 w-4 me-1" />
+                              عرض التفاصيل
+                            </Button>
                           </div>
                           {/* Scheduled Visit Date */}
-                          {invitation.scheduled_date && (
-                            <div className="mt-2 flex items-center gap-2 text-sm bg-purple-50 dark:bg-purple-900/20 rounded-lg px-3 py-2">
-                              <Calendar className="h-4 w-4 text-purple-600" />
-                              <span className="text-purple-700 dark:text-purple-300 font-medium">
-                                تاريخ الزيارة: {new Date(invitation.scheduled_date).toLocaleDateString('ar-SA', {
-                                  weekday: 'long',
-                                  year: 'numeric',
-                                  month: 'long',
-                                  day: 'numeric'
-                                })}
-                              </span>
-                            </div>
-                          )}
+                        {invitation.scheduled_date && (
+                          <div className="flex items-center gap-2 text-sm bg-purple-50 dark:bg-purple-900/20 rounded-lg px-3 py-2">
+                            <Calendar className="h-4 w-4 text-purple-600" />
+                            <span className="text-purple-700 dark:text-purple-300 font-medium">
+                              تاريخ الزيارة: {new Date(invitation.scheduled_date).toLocaleDateString('ar-SA', {
+                                calendar: 'gregory',
+                                weekday: 'long',
+                                year: 'numeric',
+                                month: 'long',
+                                day: 'numeric'
+                              })}
+                            </span>
+                          </div>
+                        )}
                         </div>
                       </div>
                       
@@ -614,7 +734,7 @@ const InfluencerDashboard = () => {
               {selectedInvitation?.scheduled_date && (
                 <div className="bg-muted rounded-lg p-3">
                   <p className="text-sm text-muted-foreground">
-                    <strong>تاريخ الزيارة المحدد:</strong> {new Date(selectedInvitation.scheduled_date).toLocaleDateString('ar-SA')}
+                    <strong>تاريخ الزيارة المحدد:</strong> {new Date(selectedInvitation.scheduled_date).toLocaleDateString('ar-SA', { calendar: 'gregory' })}
                   </p>
                   <p className="text-xs text-muted-foreground mt-1">
                     يرجى التأكد من نشر المحتوى في الموعد المحدد أو بعده
@@ -641,6 +761,176 @@ const InfluencerDashboard = () => {
               >
                 {submittingProof ? 'جاري الحفظ...' : 'حفظ'}
               </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
+
+        {/* Campaign Details Dialog */}
+        <Dialog open={campaignDetailsDialogOpen} onOpenChange={setCampaignDetailsDialogOpen}>
+          <DialogContent className="sm:max-w-[700px] max-h-[80vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle className="text-2xl">تفاصيل الحملة</DialogTitle>
+              <DialogDescription>
+                اطلع على جميع تفاصيل الحملة ومتطلباتها
+              </DialogDescription>
+            </DialogHeader>
+            
+            {selectedInvitation?.campaigns && (
+              <div className="space-y-6 py-4">
+                {/* Business Info */}
+                <div className="space-y-2">
+                  <h3 className="font-semibold text-lg flex items-center gap-2">
+                    <Briefcase className="h-5 w-5 text-primary" />
+                    {selectedInvitation.campaigns.owner_profiles?.business_name || selectedInvitation.campaigns.title}
+                  </h3>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <Badge variant="secondary">
+                      {getGoalLabel(selectedInvitation.campaigns.goal)}
+                    </Badge>
+                    <span className="text-sm text-muted-foreground">
+                      📍 {selectedInvitation.campaigns.branches?.neighborhood && `${selectedInvitation.campaigns.branches.neighborhood}، `}
+                      {selectedInvitation.campaigns.branches?.city || 'غير محدد'}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Offered Price */}
+                <Card className="p-4 bg-gradient-to-br from-success/10 to-success/5 border-success/20">
+                  <div className="flex items-center gap-3">
+                    <div className="h-12 w-12 rounded-lg bg-success/20 flex items-center justify-center">
+                      <DollarSign className="h-6 w-6 text-success" />
+                    </div>
+                    <div>
+                      <p className="text-sm text-muted-foreground">المبلغ المعروض</p>
+                      {selectedInvitation.offered_price && selectedInvitation.offered_price > 0 ? (
+                        <p className="text-2xl font-bold text-success">
+                          {selectedInvitation.offered_price.toLocaleString()} ر.س
+                        </p>
+                      ) : (
+                        <p className="text-xl font-bold text-amber-600">
+                          ضيافة مجانية
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                </Card>
+
+                {/* Scheduled Date */}
+                {selectedInvitation.scheduled_date && (
+                  <Card className="p-4 bg-gradient-to-br from-purple-50 to-purple-100/50 dark:from-purple-900/20 dark:to-purple-900/10 border-purple-200 dark:border-purple-800">
+                    <div className="flex items-center gap-3">
+                      <Calendar className="h-5 w-5 text-purple-600" />
+                      <div>
+                        <p className="text-sm text-muted-foreground">تاريخ الزيارة المطلوب</p>
+                        <p className="font-semibold text-purple-700 dark:text-purple-300">
+                          {new Date(selectedInvitation.scheduled_date).toLocaleDateString('ar-SA', {
+                            calendar: 'gregory',
+                            weekday: 'long',
+                            year: 'numeric',
+                            month: 'long',
+                            day: 'numeric'
+                          })}
+                        </p>
+                      </div>
+                    </div>
+                  </Card>
+                )}
+
+                {/* Campaign Description */}
+                {selectedInvitation.campaigns.description && (
+                  <div className="space-y-2">
+                    <h4 className="font-semibold flex items-center gap-2">
+                      <FileText className="h-4 w-4 text-primary" />
+                      وصف الحملة
+                    </h4>
+                    <Card className="p-4 bg-muted/50">
+                      <p className="text-sm leading-relaxed whitespace-pre-wrap">
+                        {selectedInvitation.campaigns.description}
+                      </p>
+                    </Card>
+                  </div>
+                )}
+
+                {/* Goal Details */}
+                {selectedInvitation.campaigns.goal_details && (
+                  <div className="space-y-2">
+                    <h4 className="font-semibold flex items-center gap-2">
+                      <Info className="h-4 w-4 text-primary" />
+                      تفاصيل الهدف
+                    </h4>
+                    <Card className="p-4 bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800">
+                      <p className="text-sm leading-relaxed whitespace-pre-wrap text-blue-900 dark:text-blue-100">
+                        {selectedInvitation.campaigns.goal_details}
+                      </p>
+                    </Card>
+                  </div>
+                )}
+
+                {/* Content Requirements */}
+                {selectedInvitation.campaigns.content_requirements && (
+                  <div className="space-y-2">
+                    <h4 className="font-semibold flex items-center gap-2">
+                      <FileText className="h-4 w-4 text-amber-600" />
+                      متطلبات المحتوى
+                    </h4>
+                    <Card className="p-4 bg-amber-50 dark:bg-amber-900/20 border-amber-200 dark:border-amber-800">
+                      <p className="text-sm leading-relaxed whitespace-pre-wrap text-amber-900 dark:text-amber-100">
+                        {selectedInvitation.campaigns.content_requirements}
+                      </p>
+                    </Card>
+                  </div>
+                )}
+
+                {/* Important Notice */}
+                <Card className="p-4 bg-gradient-to-br from-primary/10 to-secondary/10 border-primary/20">
+                  <div className="flex items-start gap-3">
+                    <Info className="h-5 w-5 text-primary mt-0.5 flex-shrink-0" />
+                    <div className="text-sm">
+                      <p className="font-medium mb-1">ملاحظة مهمة:</p>
+                      <p className="text-muted-foreground leading-relaxed">
+                        عند قبولك لهذه الدعوة، يجب عليك زيارة الموقع في التاريخ المحدد وإنشاء محتوى وفقاً للمتطلبات المذكورة أعلاه. بعد نشر المحتوى، يرجى رفع رابط المنشور للمراجعة والاعتماد.
+                      </p>
+                    </div>
+                  </div>
+                </Card>
+              </div>
+            )}
+
+            <div className="flex gap-3 pt-4 border-t">
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setCampaignDetailsDialogOpen(false);
+                }}
+                className="flex-1"
+              >
+                إغلاق
+              </Button>
+              {selectedInvitation?.status === 'pending' && (
+                <>
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      setCampaignDetailsDialogOpen(false);
+                      handleRejectInvitation(selectedInvitation.id);
+                    }}
+                    className="flex-1 text-destructive hover:bg-destructive/10"
+                  >
+                    <X className="h-4 w-4 me-1" />
+                    رفض
+                  </Button>
+                  <Button
+                    onClick={() => {
+                      setCampaignDetailsDialogOpen(false);
+                      handleAcceptInvitation(selectedInvitation.id);
+                    }}
+                    className="flex-1 bg-success hover:bg-success/90"
+                  >
+                    <CheckCircle2 className="h-4 w-4 me-1" />
+                    قبول
+                  </Button>
+                </>
+              )}
             </div>
           </DialogContent>
         </Dialog>

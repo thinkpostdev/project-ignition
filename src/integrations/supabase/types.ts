@@ -368,7 +368,8 @@ export type Database = {
           history_price_cat: string | null
           history_type: string | null
           id: string
-          instagram_handle: string
+          instagram_handle: string | null
+          is_approved: boolean | null
           location: string | null
           max_price: number | null
           min_price: number | null
@@ -404,7 +405,8 @@ export type Database = {
           history_price_cat?: string | null
           history_type?: string | null
           id?: string
-          instagram_handle: string
+          instagram_handle?: string | null
+          is_approved?: boolean | null
           location?: string | null
           max_price?: number | null
           min_price?: number | null
@@ -441,6 +443,7 @@ export type Database = {
           history_type?: string | null
           id?: string
           instagram_handle?: string
+          is_approved?: boolean | null
           location?: string | null
           max_price?: number | null
           min_price?: number | null
@@ -543,11 +546,12 @@ export type Database = {
           created_at: string
           id: string
           instagram_handle: string | null
+          is_approved: boolean | null
           location: string | null
           logo_url: string | null
           main_type: Database["public"]["Enums"]["main_type"] | null
           price_level: Database["public"]["Enums"]["price_level"] | null
-          snapchat_url: string | null
+          snapchat_username: string | null
           sub_category: string | null
           target_audience: string | null
           tiktok_url: string | null
@@ -562,11 +566,12 @@ export type Database = {
           created_at?: string
           id?: string
           instagram_handle?: string | null
+          is_approved?: boolean | null
           location?: string | null
           logo_url?: string | null
           main_type?: Database["public"]["Enums"]["main_type"] | null
           price_level?: Database["public"]["Enums"]["price_level"] | null
-          snapchat_url?: string | null
+          snapchat_username?: string | null
           sub_category?: string | null
           target_audience?: string | null
           tiktok_url?: string | null
@@ -581,11 +586,12 @@ export type Database = {
           created_at?: string
           id?: string
           instagram_handle?: string | null
+          is_approved?: boolean | null
           location?: string | null
           logo_url?: string | null
           main_type?: Database["public"]["Enums"]["main_type"] | null
           price_level?: Database["public"]["Enums"]["price_level"] | null
-          snapchat_url?: string | null
+          snapchat_username?: string | null
           sub_category?: string | null
           target_audience?: string | null
           tiktok_url?: string | null

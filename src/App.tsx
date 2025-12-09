@@ -18,6 +18,7 @@ import OwnerOnboarding from './pages/onboarding/OwnerOnboarding';
 import InfluencerOnboarding from './pages/onboarding/InfluencerOnboarding';
 import OwnerProfile from './pages/settings/OwnerProfile';
 import InfluencerProfile from './pages/settings/InfluencerProfile';
+import PendingApproval from './pages/PendingApproval';
 import NotFound from './pages/NotFound';
 
 const queryClient = new QueryClient();
@@ -34,6 +35,7 @@ const App = () => (
             <Route path="/" element={<Landing />} />
             <Route path="/auth/login" element={<Login />} />
             <Route path="/auth/register" element={<Register />} />
+            <Route path="/pending-approval" element={<ProtectedRoute><PendingApproval /></ProtectedRoute>} />
             <Route path="/onboarding/owner" element={<ProtectedRoute><OwnerOnboarding /></ProtectedRoute>} />
             <Route path="/onboarding/influencer" element={<ProtectedRoute><InfluencerOnboarding /></ProtectedRoute>} />
             <Route 

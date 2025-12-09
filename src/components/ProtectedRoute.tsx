@@ -24,15 +24,44 @@ export const ProtectedRoute = ({ children, requiredRole }: ProtectedRouteProps) 
         .select('role')
         .eq('user_id', user.id)
         .single()
-        .then(({ data, error }) => {
-          if (error || !data || data.role !== requiredRole) {
+        .then(async ({ data, error }) => {
+          if (error || !data) {
+            navigate('/auth/login');
+            return;
+          }
+
+          // Check approval status
+          if (data.role === 'owner') {
+            const { data: ownerProfile } = await supabase
+              .from('owner_profiles')
+              .select('is_approved')
+              .eq('user_id', user.id)
+              .single();
+
+            if (ownerProfile && !ownerProfile.is_approved) {
+              navigate('/pending-approval');
+              return;
+            }
+          } else if (data.role === 'influencer') {
+            const { data: influencerProfile } = await supabase
+              .from('influencer_profiles')
+              .select('is_approved')
+              .eq('user_id', user.id)
+              .single();
+
+            if (influencerProfile && !influencerProfile.is_approved) {
+              navigate('/pending-approval');
+              return;
+            }
+          }
+
+          // Check if role matches required role
+          if (data.role !== requiredRole) {
             // Redirect to correct dashboard based on role
-            if (data?.role === 'owner') {
+            if (data.role === 'owner') {
               navigate('/dashboard/owner');
-            } else if (data?.role === 'influencer') {
+            } else if (data.role === 'influencer') {
               navigate('/dashboard/influencer');
-            } else {
-              navigate('/auth/login');
             }
           }
         });

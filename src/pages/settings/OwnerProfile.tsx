@@ -57,12 +57,12 @@ const profileSchema = z.object({
   price_level: z.enum(['cheap', 'moderate', 'expensive']),
   instagram_handle: z.string().optional(),
   tiktok_username: z.string().optional(),
-  snapchat_url: z.string().url('رابط غير صحيح').optional().or(z.literal('')),
+  snapchat_username: z.string().optional(),
   target_audience: z.string().optional(),
 }).refine((data) => {
   const hasInstagram = data.instagram_handle && data.instagram_handle.length > 0;
   const hasTiktok = data.tiktok_username && data.tiktok_username.length > 0;
-  const hasSnapchat = data.snapchat_url && data.snapchat_url.length > 0;
+  const hasSnapchat = data.snapchat_username && data.snapchat_username.length > 0;
   return hasInstagram || hasTiktok || hasSnapchat;
 }, {
   message: 'يجب إدخال معلومات حساب واحد على الأقل',
@@ -126,7 +126,7 @@ const OwnerProfile = () => {
         price_level: ownerProfile.price_level || 'moderate',
         instagram_handle: ownerProfile.instagram_handle || '',
         tiktok_username: ownerProfile.tiktok_username || '',
-        snapchat_url: ownerProfile.snapchat_url || '',
+        snapchat_username: ownerProfile.snapchat_username || '',
         target_audience: ownerProfile.target_audience || '',
       });
 
@@ -176,7 +176,7 @@ const OwnerProfile = () => {
           price_level: data.price_level,
           instagram_handle: data.instagram_handle,
           tiktok_username: data.tiktok_username,
-          snapchat_url: data.snapchat_url,
+          snapchat_username: data.snapchat_username,
           target_audience: data.target_audience,
           updated_at: new Date().toISOString(),
         })
@@ -471,11 +471,11 @@ const OwnerProfile = () => {
                     </div>
 
                     <div className="space-y-2">
-                      <Label htmlFor="snapchat_url">رابط سناب شات</Label>
+                      <Label htmlFor="snapchat_username">اسم المستخدم في سناب شات</Label>
                       <Input
-                        id="snapchat_url"
-                        {...form.register('snapchat_url')}
-                        placeholder="https://snapchat.com/add/username"
+                        id="snapchat_username"
+                        {...form.register('snapchat_username')}
+                        placeholder="username"
                       />
                     </div>
 

@@ -68,13 +68,13 @@ const step2Schema = z.object({
 const step3Schema = z.object({
   instagram_handle: z.string().optional(),
   tiktok_username: z.string().optional(),
-  snapchat_url: z.string().url('رابط غير صحيح').optional().or(z.literal('')),
+  snapchat_username: z.string().optional(),
   target_audience: z.string().optional(),
 }).refine((data) => {
   // Ensure at least one social media account is provided
   const hasInstagram = data.instagram_handle && data.instagram_handle.length > 0;
   const hasTiktok = data.tiktok_username && data.tiktok_username.length > 0;
-  const hasSnapchat = data.snapchat_url && data.snapchat_url.length > 0;
+  const hasSnapchat = data.snapchat_username && data.snapchat_username.length > 0;
   
   return hasInstagram || hasTiktok || hasSnapchat;
 }, {
@@ -149,8 +149,9 @@ const OwnerOnboarding = () => {
             price_level: finalData.price_level,
             instagram_handle: finalData.instagram_handle,
             tiktok_username: finalData.tiktok_username,
-            snapchat_url: finalData.snapchat_url,
+            snapchat_username: finalData.snapchat_username,
             target_audience: finalData.target_audience,
+            is_approved: false,
             updated_at: new Date().toISOString(),
           })
           .eq('user_id', user.id)
@@ -177,8 +178,9 @@ const OwnerOnboarding = () => {
             price_level: finalData.price_level,
             instagram_handle: finalData.instagram_handle,
             tiktok_username: finalData.tiktok_username,
-            snapchat_url: finalData.snapchat_url,
+            snapchat_username: finalData.snapchat_username,
             target_audience: finalData.target_audience,
+            is_approved: false,
           }])
           .select()
           .single();
@@ -204,7 +206,7 @@ const OwnerOnboarding = () => {
       }
 
       toast.success('تم حفظ الملف الشخصي بنجاح');
-      navigate('/dashboard/owner');
+      navigate('/pending-approval');
     } catch (error: any) {
       toast.error(error.message || 'حدث خطأ أثناء حفظ البيانات');
     } finally {
@@ -459,11 +461,11 @@ const OwnerOnboarding = () => {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="snapchat_url">رابط سناب شات</Label>
+                <Label htmlFor="snapchat_username">اسم المستخدم في سناب شات</Label>
                 <Input
-                  id="snapchat_url"
-                  {...form3.register('snapchat_url')}
-                  placeholder="https://snapchat.com/add/username"
+                  id="snapchat_username"
+                  {...form3.register('snapchat_username')}
+                  placeholder="username"
                 />
               </div>
 

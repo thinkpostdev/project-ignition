@@ -148,5 +148,38 @@ export interface CampaignInfluencerSuggestion {
   history_price_cat: string | null;
   selected: boolean | null;
   created_at: string | null;
+  scheduled_date: string | null;
+}
+
+/**
+ * Request body for handle-invitation-rejection Edge Function.
+ */
+export interface RejectionHandlerRequest {
+  campaign_id: string;
+  rejected_influencer_id: string;
+}
+
+/**
+ * Replacement influencer details returned by the rejection handler.
+ */
+export interface ReplacementInfluencerDetails {
+  invitation_id: string;
+  influencer_id: string;
+  influencer_name: string | null;
+  cost: number;
+  match_score: number | null;
+  scheduled_date: string | null;
+}
+
+/**
+ * Response from the handle-invitation-rejection Edge Function.
+ */
+export interface RejectionHandlerResponse {
+  success: boolean;
+  replaced: boolean;
+  message: string;
+  replacement?: ReplacementInfluencerDetails;
+  remaining_budget: number;
+  error?: string;
 }
 

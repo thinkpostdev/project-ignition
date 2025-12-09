@@ -27,7 +27,9 @@ import {
   Clock,
   Link as LinkIcon,
   X,
-  FileCheck
+  FileCheck,
+  MessageCircle,
+  CreditCard
 } from 'lucide-react';
 import { formatViewsCount } from '@/domain/matching';
 import type { MatchingSummary } from '@/domain/matching';
@@ -49,6 +51,8 @@ interface CampaignSuggestion {
   type_label: string | null;
   selected: boolean | null;
   scheduled_date: string | null;
+  invitation_status?: string | null;
+  invitation_id?: string | null;
 }
 
 interface Campaign {
@@ -107,6 +111,7 @@ const CampaignDetail = () => {
   const [selectedInvitation, setSelectedInvitation] = useState<InvitationWithProof | null>(null);
   const [rejectionReason, setRejectionReason] = useState('');
   const [processingProof, setProcessingProof] = useState(false);
+  const [paymentDialogOpen, setPaymentDialogOpen] = useState(false);
 
   useEffect(() => {
     if (user && id) {
@@ -115,6 +120,24 @@ const CampaignDetail = () => {
       fetchInvitations();
     }
   }, [user, id]);
+
+  // Auto-refresh suggestions if campaign is still in draft/waiting state
+  useEffect(() => {
+    if (!campaign || !id) return;
+    
+    // If campaign is still processing and has no suggestions, poll for updates
+    if ((campaign.status === 'draft' || campaign.status === 'waiting_match_plan') && suggestions.length === 0) {
+      console.log('[CampaignDetail] Campaign still processing, will refresh in 3 seconds...');
+      
+      const refreshTimer = setTimeout(() => {
+        console.log('[CampaignDetail] Auto-refreshing suggestions...');
+        fetchSuggestions();
+        fetchCampaign();
+      }, 3000);
+
+      return () => clearTimeout(refreshTimer);
+    }
+  }, [campaign?.status, suggestions.length, id]);
 
   const fetchCampaign = async () => {
     try {
@@ -162,21 +185,41 @@ const CampaignDetail = () => {
     try {
       console.log('[CampaignDetail] Fetching suggestions for campaign:', id);
       
-      // Query suggestions directly - all needed data is stored in the suggestions table
-      // No FK relationship to influencer_profiles exists, so we can't join
-      const { data, error } = await supabase
+      // Query suggestions
+      const { data: suggestionsData, error } = await supabase
         .from('campaign_influencer_suggestions')
         .select('*')
         .eq('campaign_id', id)
         .order('match_score', { ascending: false });
 
-      console.log('[CampaignDetail] Suggestions query result:', { data, error, count: data?.length });
+      console.log('[CampaignDetail] Suggestions query result:', { data: suggestionsData, error, count: suggestionsData?.length });
 
       if (error) {
         console.error('[CampaignDetail] Suggestions query error:', error);
         throw error;
       }
-      setSuggestions((data || []) as CampaignSuggestion[]);
+
+      // Fetch all invitations for this campaign (all statuses)
+      const { data: invitationsData } = await supabase
+        .from('influencer_invitations')
+        .select('id, influencer_id, status')
+        .eq('campaign_id', id);
+
+      console.log('[CampaignDetail] Invitations for status:', { invitations: invitationsData });
+
+      // Create a map of influencer_id -> invitation status
+      const invitationMap = new Map(
+        (invitationsData || []).map(inv => [inv.influencer_id, { status: inv.status, id: inv.id }])
+      );
+
+      // Merge invitation status into suggestions
+      const suggestionsWithStatus = (suggestionsData || []).map(suggestion => ({
+        ...suggestion,
+        invitation_status: invitationMap.get(suggestion.influencer_id)?.status || null,
+        invitation_id: invitationMap.get(suggestion.influencer_id)?.id || null,
+      }));
+
+      setSuggestions(suggestionsWithStatus as CampaignSuggestion[]);
     } catch (error) {
       console.error('Error fetching suggestions:', error);
     }
@@ -365,11 +408,12 @@ const CampaignDetail = () => {
     return editedDates[suggestion.id] ?? suggestion.scheduled_date;
   };
 
-  // Format date for display in Arabic
+  // Format date for display in Arabic (Gregorian calendar)
   const formatDateArabic = (dateStr: string | null): string => {
     if (!dateStr) return 'غير محدد';
     const date = new Date(dateStr);
-    return date.toLocaleDateString('ar-SA', { 
+    return date.toLocaleDateString('ar-SA', {
+      calendar: 'gregory',
       weekday: 'long',
       year: 'numeric', 
       month: 'long', 
@@ -377,9 +421,10 @@ const CampaignDetail = () => {
     });
   };
 
-  // Send invitations to all non-selected influencers at once
+  // Send invitations to all non-invited influencers at once
   const handleApproveAll = async () => {
-    const pendingSuggestions = suggestions.filter(s => !s.selected);
+    // Filter out suggestions that haven't been invited yet (no invitation_status)
+    const pendingSuggestions = suggestions.filter(s => !s.invitation_status);
     
     if (pendingSuggestions.length === 0) {
       toast.info('جميع المؤثرين تم إرسال دعوات لهم بالفعل');
@@ -418,12 +463,13 @@ const CampaignDetail = () => {
 
       if (updateError) throw updateError;
 
-      // Create invitations for all, including the scheduled_date
+      // Create invitations for all, including the scheduled_date and offered_price
       const invitations = pendingSuggestions.map(s => ({
         campaign_id: id,
         influencer_id: s.influencer_id,
         status: 'pending' as const,
         scheduled_date: getEffectiveDate(s),
+        offered_price: s.min_price || 0,
       }));
 
       const { error: insertError } = await supabase
@@ -514,9 +560,54 @@ const CampaignDetail = () => {
   if (!campaign) return null;
 
   const strategy = campaign.strategy_summary;
-  const budgetUsedPercent = strategy && campaign.budget 
-    ? Math.round((strategy.total_cost / campaign.budget) * 100) 
-    : 0;
+  
+  // Calculate ACTUAL current budget and stats based on invitation statuses
+  const calculateCurrentStats = () => {
+    if (!campaign.budget) return { 
+      cost: 0, 
+      remaining: 0, 
+      percent: 0,
+      totalInfluencers: 0,
+      paidInfluencers: 0,
+      hospitalityInfluencers: 0,
+      totalReach: 0
+    };
+    
+    // Filter for active invitations (pending + accepted)
+    const activeInvitations = suggestions.filter(
+      s => s.invitation_status === 'pending' || s.invitation_status === 'accepted'
+    );
+    
+    // Calculate costs
+    const activeCost = activeInvitations.reduce((sum, s) => sum + (s.min_price || 0), 0);
+    const remaining = campaign.budget - activeCost;
+    const percent = Math.round((activeCost / campaign.budget) * 100);
+    
+    // Count influencers by type
+    const paidCount = activeInvitations.filter(s => 
+      s.type_label?.toLowerCase() === 'paid' || (s.min_price && s.min_price > 0)
+    ).length;
+    
+    const hospitalityCount = activeInvitations.filter(s => 
+      s.type_label?.toLowerCase() === 'hospitality' || !s.min_price || s.min_price === 0
+    ).length;
+    
+    // Calculate total reach
+    const totalReach = activeInvitations.reduce((sum, s) => sum + (s.avg_views_val || 0), 0);
+    
+    return {
+      cost: activeCost,
+      remaining: remaining,
+      percent: percent,
+      totalInfluencers: activeInvitations.length,
+      paidInfluencers: paidCount,
+      hospitalityInfluencers: hospitalityCount,
+      totalReach: totalReach
+    };
+  };
+  
+  const currentStats = calculateCurrentStats();
+  const budgetUsedPercent = currentStats.percent;
 
   return (
     <div className="min-h-screen bg-muted/30">
@@ -578,38 +669,39 @@ const CampaignDetail = () => {
           <Card className="p-6 mb-8 bg-gradient-to-br from-primary/5 to-secondary/5 border-primary/20">
             <div className="flex items-center gap-2 mb-4">
               <TrendingUp className="h-5 w-5 text-primary" />
-              <h3 className="text-lg font-semibold">ملخص استراتيجية المطابقة</h3>
+              <h3 className="text-lg font-semibold">ملخص الحملة الحالي</h3>
+              <Badge variant="outline" className="text-xs">محدث تلقائياً</Badge>
             </div>
             
             <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
               <div className="bg-background rounded-lg p-4">
                 <div className="flex items-center gap-2 mb-1">
                   <Users className="h-4 w-4 text-primary" />
-                  <span className="text-sm text-muted-foreground">إجمالي المؤثرين</span>
+                  <span className="text-sm text-muted-foreground">المؤثرين النشطين</span>
                 </div>
-                <p className="text-2xl font-bold">{strategy.total_influencers}</p>
+                <p className="text-2xl font-bold">{currentStats.totalInfluencers}</p>
                 <p className="text-xs text-muted-foreground">
-                  {strategy.paid_influencers} مدفوع • {strategy.hospitality_influencers} ضيافة
+                  {currentStats.paidInfluencers} مدفوع • {currentStats.hospitalityInfluencers} ضيافة
                 </p>
               </div>
 
               <div className="bg-background rounded-lg p-4">
                 <div className="flex items-center gap-2 mb-1">
                   <DollarSign className="h-4 w-4 text-emerald-600" />
-                  <span className="text-sm text-muted-foreground">التكلفة المتوقعة</span>
+                  <span className="text-sm text-muted-foreground">التكلفة الحالية</span>
                 </div>
-                <p className="text-2xl font-bold">{strategy.total_cost.toLocaleString()} ر.س</p>
+                <p className="text-2xl font-bold">{currentStats.cost.toLocaleString()} ر.س</p>
                 <p className="text-xs text-muted-foreground">
-                  متبقي: {strategy.remaining_budget.toLocaleString()} ر.س
+                  متبقي: {currentStats.remaining.toLocaleString()} ر.س
                 </p>
               </div>
 
               <div className="bg-background rounded-lg p-4">
                 <div className="flex items-center gap-2 mb-1">
                   <Eye className="h-4 w-4 text-blue-600" />
-                  <span className="text-sm text-muted-foreground">الوصول المتوقع</span>
+                  <span className="text-sm text-muted-foreground">الوصول الحالي</span>
                 </div>
-                <p className="text-2xl font-bold">{formatViewsCount(strategy.total_reach)}</p>
+                <p className="text-2xl font-bold">{formatViewsCount(currentStats.totalReach)}</p>
                 <p className="text-xs text-muted-foreground">مشاهدة تقريباً</p>
               </div>
 
@@ -718,9 +810,9 @@ const CampaignDetail = () => {
             </div>
             <div className="flex items-center gap-3">
               <Badge variant="outline">{suggestions.length} مقترح</Badge>
-              {suggestions.length > 0 && suggestions.some(s => !s.selected) && (
+              {suggestions.length > 0 && suggestions.some(s => !s.invitation_status) && (
                 <Button 
-                  onClick={handleApproveAll}
+                  onClick={() => setPaymentDialogOpen(true)}
                   disabled={approvingAll}
                   className="bg-gradient-to-r from-primary to-secondary hover:opacity-90"
                 >
@@ -731,13 +823,20 @@ const CampaignDetail = () => {
                     </>
                   ) : (
                     <>
-                      <CheckCircle2 className="h-4 w-4 me-2" />
-                      اعتماد الجميع ({suggestions.filter(s => !s.selected).length})
+                      <CreditCard className="h-4 w-4 me-2" />
+                      المتابعة للدفع ({suggestions.filter(s => !s.invitation_status).length})
                     </>
                   )}
                 </Button>
               )}
             </div>
+          </div>
+
+          {/* Red Notice */}
+          <div className="mb-6 p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
+            <p className="text-sm text-red-700 dark:text-red-300 font-medium leading-relaxed">
+              <strong className="text-red-800 dark:text-red-200">ملاحظة:</strong> في حال لم يقبل المؤثّر الدعوة سيتم إرسالها إلى مؤثّر آخر، وإذا لم يتوفّر مؤثّر بديل — أو حتى إذا الموثر الجديد مبلغه أقل — سيتم إعادة المبلغ المتبقي إلى خانة «الفائض» لتتمكّنوا من الاستفادة منه لاحقًا.
+            </p>
           </div>
 
           {suggestions.length > 0 ? (
@@ -750,6 +849,8 @@ const CampaignDetail = () => {
                     key={suggestion.id} 
                     className={`p-5 hover:shadow-elevated transition-shadow ${
                       isHospitality ? 'border-amber-200 dark:border-amber-800/50' : ''
+                    } ${
+                      suggestion.invitation_status === 'declined' ? 'opacity-60 border-red-200 dark:border-red-800/50' : ''
                     }`}
                   >
                     <div className="flex items-start justify-between gap-4">
@@ -763,7 +864,9 @@ const CampaignDetail = () => {
                         </div>
                         <div className="flex-1">
                           <div className="flex items-center gap-2 flex-wrap mb-1">
-                            <h4 className="font-semibold text-lg">
+                            <h4 className={`font-semibold text-lg ${
+                              suggestion.invitation_status === 'declined' ? 'line-through text-muted-foreground' : ''
+                            }`}>
                               {suggestion.name || 'مؤثر'}
                             </h4>
                             
@@ -791,11 +894,29 @@ const CampaignDetail = () => {
                               )}
                             </Badge>
                             
-                            {/* Selected Badge */}
-                            {suggestion.selected && (
+                            {/* Invitation Status Badge */}
+                            {suggestion.invitation_status === 'pending' && (
+                              <Badge variant="outline" className="bg-blue-100 text-blue-700 border-blue-300">
+                                <Clock className="h-3 w-3 me-1" />
+                                في الانتظار
+                              </Badge>
+                            )}
+                            {suggestion.invitation_status === 'accepted' && (
                               <Badge variant="default" className="bg-emerald-600">
                                 <CheckCircle2 className="h-3 w-3 me-1" />
-                                تم الإرسال
+                                مقبول
+                              </Badge>
+                            )}
+                            {suggestion.invitation_status === 'declined' && (
+                              <Badge variant="outline" className="bg-red-100 text-red-700 border-red-300">
+                                <X className="h-3 w-3 me-1" />
+                                المؤثر رفض الدعوة
+                              </Badge>
+                            )}
+                            {suggestion.invitation_status === 'cancelled' && (
+                              <Badge variant="outline" className="bg-gray-100 text-gray-700 border-gray-300">
+                                <X className="h-3 w-3 me-1" />
+                                ملغي
                               </Badge>
                             )}
                           </div>
@@ -854,8 +975,12 @@ const CampaignDetail = () => {
                               <Calendar className="h-4 w-4 text-purple-600" />
                               <span className="text-muted-foreground">تاريخ الزيارة:</span>
                             </div>
-                            {suggestion.selected ? (
-                              <span className="text-sm font-medium text-purple-700">
+                            {suggestion.invitation_status ? (
+                              <span className={`text-sm font-medium ${
+                                suggestion.invitation_status === 'declined' 
+                                  ? 'text-red-700 line-through' 
+                                  : 'text-purple-700'
+                              }`}>
                                 {formatDateArabic(getEffectiveDate(suggestion))}
                               </span>
                             ) : (
@@ -867,7 +992,7 @@ const CampaignDetail = () => {
                                 min={new Date().toISOString().split('T')[0]}
                               />
                             )}
-                            {editedDates[suggestion.id] && !suggestion.selected && (
+                            {editedDates[suggestion.id] && !suggestion.invitation_status && (
                               <Badge variant="outline" className="text-xs bg-purple-50 text-purple-700 border-purple-200">
                                 معدل
                               </Badge>
@@ -876,12 +1001,7 @@ const CampaignDetail = () => {
                         </div>
                       </div>
                       
-                      {suggestion.selected && (
-                        <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
-                          <CheckCircle2 className="h-3 w-3 me-1" />
-                          تم الإرسال
-                        </Badge>
-                      )}
+                      {/* Status badge moved to inline with name */}
                     </div>
                   </Card>
                 );
@@ -959,6 +1079,7 @@ const CampaignDetail = () => {
                             <Calendar className="h-3 w-3 text-muted-foreground" />
                             <span>
                               {new Date(invitation.scheduled_date).toLocaleDateString('ar-SA', {
+                                calendar: 'gregory',
                                 year: 'numeric',
                                 month: 'short',
                                 day: 'numeric'
@@ -1057,6 +1178,121 @@ const CampaignDetail = () => {
             </div>
           )}
         </Card>
+
+        {/* Payment Dialog */}
+        <Dialog open={paymentDialogOpen} onOpenChange={setPaymentDialogOpen}>
+          <DialogContent className="sm:max-w-[600px]" dir="rtl">
+            <DialogHeader>
+              <DialogTitle className="text-2xl flex items-center gap-2">
+                <CreditCard className="h-6 w-6 text-primary" />
+                إتمام عملية الدفع
+              </DialogTitle>
+              <DialogDescription>
+                يرجى تحويل المبلغ المطلوب إلى الحساب التالي ومن ثم التواصل معنا عبر واتساب
+              </DialogDescription>
+            </DialogHeader>
+            
+            <div className="space-y-6 py-6">
+              {/* Payment Information Card */}
+              <div className="bg-gradient-to-br from-primary/5 to-secondary/5 border-2 border-primary/20 rounded-lg p-6">
+                <h4 className="font-semibold text-lg mb-4 flex items-center gap-2">
+                  <DollarSign className="h-5 w-5 text-primary" />
+                  معلومات الحساب البنكي
+                </h4>
+                
+                <div className="space-y-3 bg-background rounded-lg p-4">
+                  <div className="flex justify-between items-center border-b pb-2">
+                    <span className="text-muted-foreground">اسم الشركة:</span>
+                    <span className="font-semibold text-lg">شركة فكرة مبرمج</span>
+                  </div>
+                  
+                  <div className="flex justify-between items-center">
+                    <span className="text-muted-foreground">رقم الآيبان:</span>
+                    <div className="flex items-center gap-2">
+                      <code className="font-mono text-lg font-bold bg-muted px-3 py-1 rounded">
+                        SA 74 8000 0470 6080 1921 4569
+                      </code>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => {
+                          navigator.clipboard.writeText('SA748000047060801921456');
+                          toast.success('تم نسخ رقم الآيبان');
+                        }}
+                      >
+                        نسخ
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* WhatsApp Contact */}
+              <div className="bg-green-50 dark:bg-green-900/20 border-2 border-green-200 dark:border-green-800 rounded-lg p-6">
+                <h4 className="font-semibold text-lg mb-4 flex items-center gap-2 text-green-800 dark:text-green-300">
+                  <MessageCircle className="h-5 w-5" />
+                  تواصل معنا بعد التحويل
+                </h4>
+                
+                <p className="text-sm text-muted-foreground mb-4">
+                  بعد إتمام التحويل، يرجى التواصل معنا عبر واتساب لتأكيد الدفع
+                </p>
+                
+                <Button
+                  onClick={() => {
+                    window.open('https://wa.me/966550281271', '_blank');
+                  }}
+                  className="w-full bg-green-600 hover:bg-green-700 text-white"
+                  size="lg"
+                >
+                  <MessageCircle className="h-5 w-5 me-2" />
+                  التواصل عبر واتساب (+966 55 028 1271)
+                </Button>
+              </div>
+
+              {/* Notice */}
+              <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg p-4">
+                <p className="text-sm text-amber-800 dark:text-amber-300">
+                  <strong>ملاحظة:</strong> بعد التأكد من استلام المبلغ، انقر على زر "تم الدفع + ارسل الدعوات" لإرسال الدعوات للمؤثرين
+                </p>
+              </div>
+            </div>
+
+            {/* Action Buttons */}
+            <div className="flex gap-3">
+              <Button
+                variant="outline"
+                onClick={() => setPaymentDialogOpen(false)}
+                className="flex-1"
+                disabled={approvingAll}
+              >
+                <ArrowLeft className="h-4 w-4 me-2" />
+                العودة
+              </Button>
+              <Button
+                onClick={async () => {
+                  setPaymentDialogOpen(false);
+                  await handleApproveAll();
+                }}
+                className="flex-1 bg-gradient-to-r from-green-600 to-green-700 hover:opacity-90"
+                disabled={approvingAll}
+                size="lg"
+              >
+                {approvingAll ? (
+                  <>
+                    <RefreshCw className="h-4 w-4 me-2 animate-spin" />
+                    جاري الإرسال...
+                  </>
+                ) : (
+                  <>
+                    <CheckCircle2 className="h-4 w-4 me-2" />
+                    تم الدفع + ارسل الدعوات
+                  </>
+                )}
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
 
         {/* Rejection Reason Dialog */}
         <Dialog open={rejectDialogOpen} onOpenChange={setRejectDialogOpen}>

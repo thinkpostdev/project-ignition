@@ -68,6 +68,8 @@ interface Campaign {
   add_bonus_hospitality: boolean | null;
   strategy_summary: MatchingSummary | null;
   owner_id: string;
+  payment_approved: boolean | null;
+  payment_submitted_at: string | null;
   owner_profiles?: {
     business_name: string;
     main_type: string | null;
@@ -421,7 +423,7 @@ const CampaignDetail = () => {
     });
   };
 
-  // Send invitations to all non-invited influencers at once
+  // Mark payment as submitted (admin will review and approve)
   const handleApproveAll = async () => {
     // Filter out suggestions that haven't been invited yet (no invitation_status)
     const pendingSuggestions = suggestions.filter(s => !s.invitation_status);
@@ -434,7 +436,7 @@ const CampaignDetail = () => {
     setApprovingAll(true);
     
     try {
-      const loadingToast = toast.loading(`جاري حفظ التواريخ وإرسال ${pendingSuggestions.length} دعوة...`);
+      const loadingToast = toast.loading(`جاري حفظ التواريخ...`);
       
       // First, update any edited dates in the suggestions table
       const dateUpdates = pendingSuggestions
@@ -463,29 +465,25 @@ const CampaignDetail = () => {
 
       if (updateError) throw updateError;
 
-      // Create invitations for all, including the scheduled_date and offered_price
-      const invitations = pendingSuggestions.map(s => ({
-        campaign_id: id,
-        influencer_id: s.influencer_id,
-        status: 'pending' as const,
-        scheduled_date: getEffectiveDate(s),
-        offered_price: s.min_price || 0,
-      }));
+      // Mark payment as submitted (waiting for admin approval)
+      const { error: paymentError } = await supabase
+        .from('campaigns')
+        .update({ 
+          payment_submitted_at: new Date().toISOString()
+        })
+        .eq('id', id);
 
-      const { error: insertError } = await supabase
-        .from('influencer_invitations')
-        .insert(invitations);
-
-      if (insertError) throw insertError;
+      if (paymentError) throw paymentError;
 
       toast.dismiss(loadingToast);
-      toast.success(`تم إرسال ${pendingSuggestions.length} دعوة بنجاح!`);
+      toast.success('تم تسجيل الدفع بنجاح!');
       
       // Clear edited dates and refresh
       setEditedDates({});
+      await fetchCampaign();
       await fetchSuggestions();
     } catch (error: unknown) {
-      const errorMessage = error instanceof Error ? error.message : 'فشل إرسال الدعوات';
+      const errorMessage = error instanceof Error ? error.message : 'فشل تسجيل الدفع';
       toast.error(errorMessage);
     } finally {
       setApprovingAll(false);
@@ -810,7 +808,7 @@ const CampaignDetail = () => {
             </div>
             <div className="flex items-center gap-3">
               <Badge variant="outline">{suggestions.length} مقترح</Badge>
-              {suggestions.length > 0 && suggestions.some(s => !s.invitation_status) && (
+              {suggestions.length > 0 && suggestions.some(s => !s.invitation_status) && !campaign.payment_submitted_at && (
                 <Button 
                   onClick={() => setPaymentDialogOpen(true)}
                   disabled={approvingAll}
@@ -819,7 +817,7 @@ const CampaignDetail = () => {
                   {approvingAll ? (
                     <>
                       <RefreshCw className="h-4 w-4 me-2 animate-spin" />
-                      جاري الإرسال...
+                      جاري الحفظ...
                     </>
                   ) : (
                     <>
@@ -831,6 +829,40 @@ const CampaignDetail = () => {
               )}
             </div>
           </div>
+
+          {/* Payment Submitted Notice */}
+          {campaign.payment_submitted_at && !campaign.payment_approved && (
+            <div className="mb-6 p-4 bg-blue-50 dark:bg-blue-900/20 border-2 border-blue-200 dark:border-blue-800 rounded-lg">
+              <div className="flex items-center gap-3">
+                <Clock className="h-6 w-6 text-blue-600 dark:text-blue-400 flex-shrink-0" />
+                <div className="flex-1">
+                  <p className="text-base font-semibold text-blue-800 dark:text-blue-200 mb-1">
+                    سيتم مراجعة الدفع ومن ثم إرسال الدعوات إلى المؤثرين
+                  </p>
+                  <p className="text-sm text-blue-700 dark:text-blue-300">
+                    تم تسجيل تأكيد الدفع بنجاح. سيقوم فريقنا بمراجعة الدفع وإرسال الدعوات للمؤثرين خلال أقرب وقت ممكن.
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Payment Approved & Invitations Sent Notice */}
+          {campaign.payment_approved && suggestions.some(s => s.invitation_status) && (
+            <div className="mb-6 p-4 bg-green-50 dark:bg-green-900/20 border-2 border-green-200 dark:border-green-800 rounded-lg">
+              <div className="flex items-center gap-3">
+                <CheckCircle2 className="h-6 w-6 text-green-600 dark:text-green-400 flex-shrink-0" />
+                <div className="flex-1">
+                  <p className="text-base font-semibold text-green-800 dark:text-green-200 mb-1">
+                    تم اعتماد الدفع وإرسال الدعوات
+                  </p>
+                  <p className="text-sm text-green-700 dark:text-green-300">
+                    تم إرسال الدعوات للمؤثرين المختارين. يمكنك متابعة حالة الدعوات أدناه.
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Red Notice */}
           <div className="mb-6 p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
@@ -1253,7 +1285,7 @@ const CampaignDetail = () => {
               {/* Notice */}
               <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg p-4">
                 <p className="text-sm text-amber-800 dark:text-amber-300">
-                  <strong>ملاحظة:</strong> بعد التأكد من استلام المبلغ، انقر على زر "تم الدفع + ارسل الدعوات" لإرسال الدعوات للمؤثرين
+                  <strong>ملاحظة:</strong> بعد إتمام التحويل والتواصل معنا، انقر على زر "تم الدفع" لتأكيد الدفع. سيتم مراجعة الدفع ومن ثم إرسال الدعوات إلى المؤثرين
                 </p>
               </div>
             </div>
@@ -1271,22 +1303,27 @@ const CampaignDetail = () => {
               </Button>
               <Button
                 onClick={async () => {
-                  setPaymentDialogOpen(false);
                   await handleApproveAll();
+                  setPaymentDialogOpen(false);
                 }}
                 className="flex-1 bg-gradient-to-r from-green-600 to-green-700 hover:opacity-90"
-                disabled={approvingAll}
+                disabled={approvingAll || campaign?.payment_submitted_at !== null}
                 size="lg"
               >
                 {approvingAll ? (
                   <>
                     <RefreshCw className="h-4 w-4 me-2 animate-spin" />
-                    جاري الإرسال...
+                    جاري الحفظ...
+                  </>
+                ) : campaign?.payment_submitted_at ? (
+                  <>
+                    <Clock className="h-4 w-4 me-2" />
+                    بانتظار مراجعة الدفع
                   </>
                 ) : (
                   <>
                     <CheckCircle2 className="h-4 w-4 me-2" />
-                    تم الدفع + ارسل الدعوات
+                    تم الدفع
                   </>
                 )}
               </Button>

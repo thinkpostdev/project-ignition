@@ -186,6 +186,8 @@ export type Database = {
           goal_details: string | null
           id: string
           owner_id: string
+          payment_approved: boolean | null
+          payment_submitted_at: string | null
           start_date: string | null
           status: Database["public"]["Enums"]["campaign_detailed_status"]
           strategy_summary: Json | null
@@ -209,6 +211,8 @@ export type Database = {
           goal_details?: string | null
           id?: string
           owner_id: string
+          payment_approved?: boolean | null
+          payment_submitted_at?: string | null
           start_date?: string | null
           status?: Database["public"]["Enums"]["campaign_detailed_status"]
           strategy_summary?: Json | null
@@ -232,6 +236,8 @@ export type Database = {
           goal_details?: string | null
           id?: string
           owner_id?: string
+          payment_approved?: boolean | null
+          payment_submitted_at?: string | null
           start_date?: string | null
           status?: Database["public"]["Enums"]["campaign_detailed_status"]
           strategy_summary?: Json | null

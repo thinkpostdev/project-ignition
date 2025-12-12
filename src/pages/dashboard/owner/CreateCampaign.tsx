@@ -407,7 +407,12 @@ const CreateCampaign = () => {
                         mode="single"
                         selected={form.watch('start_date')}
                         onSelect={(date) => form.setValue('start_date', date)}
-                        disabled={(date) => date < new Date()}
+                        disabled={(date) => {
+                          const minDate = new Date();
+                          minDate.setDate(minDate.getDate() + 3);
+                          minDate.setHours(0, 0, 0, 0);
+                          return date < minDate;
+                        }}
                         initialFocus
                         className="pointer-events-auto"
                       />

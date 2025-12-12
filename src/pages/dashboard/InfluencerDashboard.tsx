@@ -7,7 +7,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { LanguageSwitcher } from '@/components/LanguageSwitcher';
-import { Wallet, Briefcase, Mail, CheckCircle2, X, Clock, Calendar, Upload, Link as LinkIcon, AlertCircle, Settings, Info, DollarSign, FileText } from 'lucide-react';
+import { Wallet, Briefcase, Mail, CheckCircle2, X, Clock, Calendar, Upload, Link as LinkIcon, AlertCircle, Settings, Info, DollarSign, FileText, Phone } from 'lucide-react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
@@ -40,6 +40,7 @@ interface Invitation {
     owner_id: string | null;
     owner_profiles: {
       business_name: string | null;
+      phone: string | null;
     } | null;
     branches: {
       city: string | null;
@@ -136,18 +137,34 @@ const InfluencerDashboard = () => {
 
       // Fetch owner profiles separately for each unique owner_id
       const ownerIds = [...new Set((data || []).map(inv => inv.campaigns?.owner_id).filter(Boolean))];
-      let ownerMap: Record<string, string> = {};
+      let ownerMap: Record<string, { business_name: string | null; phone: string | null }> = {};
       
       if (ownerIds.length > 0) {
+        // Fetch owner profiles (business name)
         const { data: owners } = await supabase
           .from('owner_profiles')
           .select('user_id, business_name')
           .in('user_id', ownerIds);
         
-        ownerMap = (owners || []).reduce((acc, o) => {
-          acc[o.user_id] = o.business_name || '';
+        // Fetch owner phone numbers from profiles table
+        const { data: ownerProfiles } = await supabase
+          .from('profiles')
+          .select('id, phone')
+          .in('id', ownerIds);
+        
+        // Create map of owner data
+        const phoneMap = (ownerProfiles || []).reduce((acc, p) => {
+          acc[p.id] = p.phone;
           return acc;
-        }, {} as Record<string, string>);
+        }, {} as Record<string, string | null>);
+        
+        ownerMap = (owners || []).reduce((acc, o) => {
+          acc[o.user_id] = {
+            business_name: o.business_name || null,
+            phone: phoneMap[o.user_id] || null
+          };
+          return acc;
+        }, {} as Record<string, { business_name: string | null; phone: string | null }>);
       }
 
       // Fetch branch details for each unique branch_id
@@ -174,9 +191,7 @@ const InfluencerDashboard = () => {
         ...inv,
         campaigns: inv.campaigns ? {
           ...inv.campaigns,
-          owner_profiles: inv.campaigns.owner_id ? {
-            business_name: ownerMap[inv.campaigns.owner_id] || null
-          } : null,
+          owner_profiles: inv.campaigns.owner_id ? ownerMap[inv.campaigns.owner_id] || null : null,
           branches: inv.campaigns.branch_id ? branchMap[inv.campaigns.branch_id] : null
         } : null
       }));
@@ -831,6 +846,25 @@ const InfluencerDashboard = () => {
                             day: 'numeric'
                           })}
                         </p>
+                      </div>
+                    </div>
+                  </Card>
+                )}
+
+                {/* Owner Contact Info - Show phone number */}
+                {selectedInvitation.campaigns.owner_profiles?.phone && (
+                  <Card className="p-4 bg-gradient-to-br from-blue-50 to-blue-100/50 dark:from-blue-900/20 dark:to-blue-900/10 border-blue-200 dark:border-blue-800">
+                    <div className="flex items-center gap-3">
+                      <Phone className="h-5 w-5 text-blue-600" />
+                      <div>
+                        <p className="text-sm text-muted-foreground">رقم التواصل مع صاحب المنشأة</p>
+                        <a 
+                          href={`tel:${selectedInvitation.campaigns.owner_profiles.phone}`}
+                          className="font-semibold text-blue-700 dark:text-blue-300 hover:underline"
+                          dir="ltr"
+                        >
+                          {selectedInvitation.campaigns.owner_profiles.phone}
+                        </a>
                       </div>
                     </div>
                   </Card>

@@ -58,7 +58,7 @@ const step1Schema = z.object({
 const branchSchema = z.object({
   city: z.string().min(1, 'المدينة مطلوبة'),
   neighborhood: z.string().min(1, 'اسم الحي مطلوب'),
-  google_map_url: z.string().url('رابط خرائط جوجل غير صحيح').optional().or(z.literal('')),
+  google_map_url: z.string().min(1, 'رابط خرائط جوجل مطلوب').url('رابط خرائط جوجل غير صحيح'),
 });
 
 const step2Schema = z.object({
@@ -195,7 +195,7 @@ const OwnerOnboarding = () => {
           owner_id: ownerProfile.id,
           city: branch.city,
           neighborhood: branch.neighborhood,
-          google_map_url: branch.google_map_url || null,
+          google_map_url: branch.google_map_url,
         }));
 
         const { error: branchesError } = await supabase
@@ -401,7 +401,7 @@ const OwnerOnboarding = () => {
                     </div>
 
                     <div className="space-y-2">
-                      <Label htmlFor={`branch-map-${index}`}>رابط خرائط جوجل</Label>
+                      <Label htmlFor={`branch-map-${index}`}>رابط خرائط جوجل *</Label>
                       <Input
                         id={`branch-map-${index}`}
                         value={branch.google_map_url}
@@ -409,6 +409,9 @@ const OwnerOnboarding = () => {
                         placeholder="https://maps.google.com/..."
                         dir="ltr"
                       />
+                      <p className="text-xs text-muted-foreground">
+                        يرجى نسخ رابط موقع الفرع من خرائط جوجل
+                      </p>
                     </div>
                   </Card>
                 ))}

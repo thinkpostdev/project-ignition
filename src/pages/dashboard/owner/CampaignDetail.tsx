@@ -410,6 +410,13 @@ const CampaignDetail = () => {
     return editedDates[suggestion.id] ?? suggestion.scheduled_date;
   };
 
+  // Get minimum date (3 days from now)
+  const getMinimumDate = (): string => {
+    const today = new Date();
+    today.setDate(today.getDate() + 3); // Add 3 days
+    return today.toISOString().split('T')[0];
+  };
+
   // Format date for display in Arabic (Gregorian calendar)
   const formatDateArabic = (dateStr: string | null): string => {
     if (!dateStr) return 'غير محدد';
@@ -1021,7 +1028,7 @@ const CampaignDetail = () => {
                                 value={getEffectiveDate(suggestion) || ''}
                                 onChange={(e) => handleDateChange(suggestion.id, e.target.value)}
                                 className="text-sm border rounded px-2 py-1 focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
-                                min={new Date().toISOString().split('T')[0]}
+                                min={getMinimumDate()}
                               />
                             )}
                             {editedDates[suggestion.id] && !suggestion.invitation_status && (

@@ -1,5 +1,5 @@
 import { useTranslation } from 'react-i18next';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -114,6 +114,45 @@ const CampaignDetail = () => {
   const [rejectionReason, setRejectionReason] = useState('');
   const [processingProof, setProcessingProof] = useState(false);
   const [paymentDialogOpen, setPaymentDialogOpen] = useState(false);
+  const [pollingAttempts, setPollingAttempts] = useState(0);
+
+  // Calculate actual payment amount (sum of pending influencers' prices)
+  const actualPaymentAmount = useMemo(() => {
+    const pendingSuggestions = suggestions.filter(s => !s.invitation_status);
+    const totalCost = pendingSuggestions.reduce((sum, s) => sum + (s.min_price || 0), 0);
+    return totalCost;
+  }, [suggestions]);
+
+  // Calculate the actual number of unique dates from suggestions (selected influencers)
+  const actualDuration = useMemo(() => {
+    // First check if we have suggestions with scheduled dates
+    const suggestionsWithDates = suggestions.filter(s => s.scheduled_date);
+    
+    if (suggestionsWithDates.length === 0) {
+      // Fall back to invitations if no suggestions with dates
+      const invitationsWithDates = invitations.filter(inv => inv.scheduled_date);
+      
+      if (invitationsWithDates.length === 0) {
+        return campaign?.duration_days || 10;
+      }
+      
+      const uniqueDates = new Set(
+        invitationsWithDates.map(inv => inv.scheduled_date!.split('T')[0])
+      );
+      
+      return uniqueDates.size;
+    }
+    
+    // Get unique dates from suggestions
+    const uniqueDates = new Set(
+      suggestionsWithDates.map(s => {
+        // Extract just the date part (YYYY-MM-DD)
+        return s.scheduled_date!.split('T')[0];
+      })
+    );
+    
+    return uniqueDates.size || campaign?.duration_days || 10;
+  }, [suggestions, invitations, campaign?.duration_days]);
 
   useEffect(() => {
     if (user && id) {
@@ -127,19 +166,27 @@ const CampaignDetail = () => {
   useEffect(() => {
     if (!campaign || !id) return;
     
+    // Limit polling to 20 attempts (60 seconds total) to prevent infinite loops
+    const MAX_POLLING_ATTEMPTS = 20;
+    
     // If campaign is still processing and has no suggestions, poll for updates
-    if ((campaign.status === 'draft' || campaign.status === 'waiting_match_plan') && suggestions.length === 0) {
-      console.log('[CampaignDetail] Campaign still processing, will refresh in 3 seconds...');
+    if ((campaign.status === 'draft' || campaign.status === 'waiting_match_plan') && 
+        suggestions.length === 0 && 
+        pollingAttempts < MAX_POLLING_ATTEMPTS) {
+      console.log(`[CampaignDetail] Campaign still processing (attempt ${pollingAttempts + 1}/${MAX_POLLING_ATTEMPTS}), will refresh in 3 seconds...`);
       
       const refreshTimer = setTimeout(() => {
         console.log('[CampaignDetail] Auto-refreshing suggestions...');
+        setPollingAttempts(prev => prev + 1);
         fetchSuggestions();
         fetchCampaign();
       }, 3000);
 
       return () => clearTimeout(refreshTimer);
+    } else if (pollingAttempts >= MAX_POLLING_ATTEMPTS && suggestions.length === 0) {
+      console.log('[CampaignDetail] Max polling attempts reached, stopping auto-refresh');
     }
-  }, [campaign?.status, suggestions.length, id]);
+  }, [campaign?.status, suggestions.length, id, pollingAttempts]);
 
   const fetchCampaign = async () => {
     try {
@@ -472,11 +519,15 @@ const CampaignDetail = () => {
 
       if (updateError) throw updateError;
 
-      // Mark payment as submitted (waiting for admin approval)
+      // Calculate actual payment amount
+      const actualPayment = pendingSuggestions.reduce((sum, s) => sum + (s.min_price || 0), 0);
+      
+      // Mark payment as submitted and update budget to actual amount
       const { error: paymentError } = await supabase
         .from('campaigns')
         .update({ 
-          payment_submitted_at: new Date().toISOString()
+          payment_submitted_at: new Date().toISOString(),
+          budget: actualPayment  // Update budget to actual cost
         })
         .eq('id', id);
 
@@ -772,7 +823,7 @@ const CampaignDetail = () => {
               </div>
               <div>
                 <p className="text-sm text-muted-foreground">المدة</p>
-                <p className="text-xl font-bold">{campaign.duration_days || 10} أيام</p>
+                <p className="text-xl font-bold">{actualDuration} أيام</p>
               </div>
             </div>
           </Card>
@@ -1220,79 +1271,127 @@ const CampaignDetail = () => {
 
         {/* Payment Dialog */}
         <Dialog open={paymentDialogOpen} onOpenChange={setPaymentDialogOpen}>
-          <DialogContent className="sm:max-w-[600px]" dir="rtl">
+          <DialogContent className="sm:max-w-[650px] max-h-[90vh] overflow-y-auto" dir="rtl">
             <DialogHeader>
               <DialogTitle className="text-2xl flex items-center gap-2">
                 <CreditCard className="h-6 w-6 text-primary" />
                 إتمام عملية الدفع
               </DialogTitle>
               <DialogDescription>
-                يرجى تحويل المبلغ المطلوب إلى الحساب التالي ومن ثم التواصل معنا عبر واتساب
+                اتبع الخطوات التالية لإتمام الدفع وإرسال الدعوات للمؤثرين
               </DialogDescription>
             </DialogHeader>
             
-            <div className="space-y-6 py-6">
-              {/* Payment Information Card */}
-              <div className="bg-gradient-to-br from-primary/5 to-secondary/5 border-2 border-primary/20 rounded-lg p-6">
-                <h4 className="font-semibold text-lg mb-4 flex items-center gap-2">
-                  <DollarSign className="h-5 w-5 text-primary" />
-                  معلومات الحساب البنكي
-                </h4>
-                
-                <div className="space-y-3 bg-background rounded-lg p-4">
-                  <div className="flex justify-between items-center border-b pb-2">
-                    <span className="text-muted-foreground">اسم الشركة:</span>
-                    <span className="font-semibold text-lg">شركة فكرة مبرمج</span>
+            <div className="space-y-5 py-4">
+              {/* Payment Amount - Prominent Display */}
+              <div className="bg-gradient-to-br from-primary to-secondary rounded-xl p-6 text-white text-center shadow-lg">
+                <p className="text-sm opacity-90 mb-2">المبلغ المطلوب تحويله</p>
+                <p className="text-5xl font-bold mb-1">{actualPaymentAmount.toLocaleString()}</p>
+                <p className="text-xl">ريال سعودي</p>
+                <div className="mt-4 pt-4 border-t border-white/20 text-sm opacity-90">
+                  {suggestions.filter(s => !s.invitation_status).length} مؤثر × أسعارهم الفردية
+                </div>
+              </div>
+
+              {/* Step 1 */}
+              <div className="bg-gradient-to-br from-primary/5 to-secondary/5 border-2 border-primary/20 rounded-lg p-5">
+                <div className="flex items-start gap-3">
+                  <div className="flex-shrink-0 w-8 h-8 rounded-full bg-primary text-white flex items-center justify-center font-bold">
+                    1
                   </div>
-                  
-                  <div className="flex justify-between items-center">
-                    <span className="text-muted-foreground">رقم الآيبان:</span>
-                    <div className="flex items-center gap-2">
-                      <code className="font-mono text-lg font-bold bg-muted px-3 py-1 rounded">
-                        SA 74 8000 0470 6080 1921 4569
-                      </code>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => {
-                          navigator.clipboard.writeText('SA748000047060801921456');
-                          toast.success('تم نسخ رقم الآيبان');
-                        }}
-                      >
-                        نسخ
-                      </Button>
+                  <div className="flex-1">
+                    <h4 className="font-semibold text-lg mb-3 flex items-center gap-2">
+                      <DollarSign className="h-5 w-5 text-primary" />
+                      حوّل المبلغ إلى الحساب البنكي
+                    </h4>
+                    
+                    <div className="space-y-3 bg-background rounded-lg p-4">
+                      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2 border-b pb-3">
+                        <span className="text-muted-foreground font-medium">اسم الشركة:</span>
+                        <span className="font-bold text-lg">شركة فكرة مبرمج</span>
+                      </div>
+                      
+                      <div className="flex flex-col gap-2">
+                        <span className="text-muted-foreground font-medium">رقم الآيبان:</span>
+                        <div className="flex items-center gap-2">
+                          <code className="flex-1 font-mono text-base sm:text-lg font-bold bg-muted px-3 py-2 rounded border-2 border-primary/20">
+                            SA 74 8000 0470 6080 1921 4569
+                          </code>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => {
+                              navigator.clipboard.writeText('SA74800004706080192145639');
+                              toast.success('تم نسخ رقم الآيبان');
+                            }}
+                            className="flex-shrink-0"
+                          >
+                            نسخ
+                          </Button>
+                        </div>
+                      </div>
+                      
+                      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2 border-t pt-3">
+                        <span className="text-muted-foreground font-medium">المبلغ المطلوب:</span>
+                        <span className="font-bold text-2xl text-primary">{actualPaymentAmount.toLocaleString()} ر.س</span>
+                      </div>
                     </div>
                   </div>
                 </div>
               </div>
 
-              {/* WhatsApp Contact */}
-              <div className="bg-green-50 dark:bg-green-900/20 border-2 border-green-200 dark:border-green-800 rounded-lg p-6">
-                <h4 className="font-semibold text-lg mb-4 flex items-center gap-2 text-green-800 dark:text-green-300">
-                  <MessageCircle className="h-5 w-5" />
-                  تواصل معنا بعد التحويل
-                </h4>
-                
-                <p className="text-sm text-muted-foreground mb-4">
-                  بعد إتمام التحويل، يرجى التواصل معنا عبر واتساب لتأكيد الدفع
-                </p>
-                
-                <Button
-                  onClick={() => {
-                    window.open('https://wa.me/966550281271', '_blank');
-                  }}
-                  className="w-full bg-green-600 hover:bg-green-700 text-white"
-                  size="lg"
-                >
-                  <MessageCircle className="h-5 w-5 me-2" />
-                  التواصل عبر واتساب (+966 55 028 1271)
-                </Button>
+              {/* Step 2 */}
+              <div className="bg-green-50 dark:bg-green-900/20 border-2 border-green-200 dark:border-green-800 rounded-lg p-5">
+                <div className="flex items-start gap-3">
+                  <div className="flex-shrink-0 w-8 h-8 rounded-full bg-green-600 text-white flex items-center justify-center font-bold">
+                    2
+                  </div>
+                  <div className="flex-1">
+                    <h4 className="font-semibold text-lg mb-3 flex items-center gap-2 text-green-800 dark:text-green-300">
+                      <MessageCircle className="h-5 w-5" />
+                      تواصل معنا عبر واتساب
+                    </h4>
+                    
+                    <p className="text-sm text-muted-foreground mb-4">
+                      بعد إتمام التحويل، تواصل معنا مباشرة عبر واتساب لتأكيد الدفع وإرسال إثبات التحويل
+                    </p>
+                    
+                    <Button
+                      onClick={() => {
+                        window.open('https://wa.me/966550281271', '_blank');
+                      }}
+                      className="w-full bg-green-600 hover:bg-green-700 text-white"
+                      size="lg"
+                    >
+                      <MessageCircle className="h-5 w-5 me-2" />
+                      التواصل عبر واتساب (+966 55 028 1271)
+                    </Button>
+                  </div>
+                </div>
+              </div>
+
+              {/* Step 3 */}
+              <div className="bg-blue-50 dark:bg-blue-900/20 border-2 border-blue-200 dark:border-blue-800 rounded-lg p-5">
+                <div className="flex items-start gap-3">
+                  <div className="flex-shrink-0 w-8 h-8 rounded-full bg-blue-600 text-white flex items-center justify-center font-bold">
+                    3
+                  </div>
+                  <div className="flex-1">
+                    <h4 className="font-semibold text-lg mb-2 flex items-center gap-2 text-blue-800 dark:text-blue-300">
+                      <CheckCircle2 className="h-5 w-5" />
+                      انقر على زر "تم الدفع"
+                    </h4>
+                    <p className="text-sm text-muted-foreground">
+                      بعد التحويل والتواصل معنا، اضغط على زر "تم الدفع" أدناه. سنراجع الدفع ونرسل الدعوات للمؤثرين فوراً
+                    </p>
+                  </div>
+                </div>
               </div>
 
               {/* Notice */}
               <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg p-4">
-                <p className="text-sm text-amber-800 dark:text-amber-300">
-                  <strong>ملاحظة:</strong> بعد إتمام التحويل والتواصل معنا، انقر على زر "تم الدفع" لتأكيد الدفع. سيتم مراجعة الدفع ومن ثم إرسال الدعوات إلى المؤثرين
+                <p className="text-sm text-amber-800 dark:text-amber-300 leading-relaxed">
+                  <strong>ملاحظة:</strong> المبلغ المطلوب ({actualPaymentAmount.toLocaleString()} ر.س) هو مجموع أسعار المؤثرين المختارين فقط. بعد الموافقة، سيتم إرسال الدعوات تلقائياً.
                 </p>
               </div>
             </div>

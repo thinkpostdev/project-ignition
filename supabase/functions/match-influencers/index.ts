@@ -390,6 +390,12 @@ function matchInfluencers(
   
   console.log(`[MATCH] Selected ${selectedInfluencers.length} paid influencers, remaining budget: ${remainingBudget}`);
   
+  // Check if we found paid influencers but couldn't afford any
+  if (selectedInfluencers.length === 0 && paidInfluencers.length > 0) {
+    const cheapestInfluencer = Math.min(...paidInfluencers.map(inf => inf.min_price || Infinity));
+    console.log(`[MATCH] WARNING: Budget too low. Cheapest influencer costs ${cheapestInfluencer}, but budget is ${campaignBudget}`);
+  }
+  
   // F. Add Hospitality Bonus
   if (addBonusHospitality) {
     const alreadySelectedIds = new Set(selectedInfluencers.map(s => s.id));
@@ -590,14 +596,54 @@ serve(async (req) => {
     console.log(`[HANDLER] Algorithm selected ${matchedInfluencers.length} influencers`);
 
     if (matchedInfluencers.length === 0) {
+      // Check if the issue is budget-related
+      const allInfluencersInCity = influencers.filter(inf => 
+        influencerServesCity(inf as Influencer, branchCity)
+      );
+      
+      const paidInfluencersInCity = allInfluencersInCity.filter(inf => {
+        const minPrice = inf.min_price || 0;
+        return minPrice > 0;
+      });
+      
+      if (paidInfluencersInCity.length > 0) {
+        const cheapestInfluencer = Math.min(...paidInfluencersInCity.map(inf => inf.min_price || Infinity));
+        
+        if (cheapestInfluencer > campaignBudget) {
+          // Budget is too low
+          console.log(`[HANDLER] Budget insufficient: cheapest=${cheapestInfluencer}, budget=${campaignBudget}`);
+          
+          return new Response(
+            JSON.stringify({ 
+              success: false, 
+              error: "BUDGET_TOO_LOW",
+              message: `الميزانية غير كافية. أقل سعر للمؤثرين في ${branchCity} هو ${cheapestInfluencer} ر.س، والميزانية المحددة ${campaignBudget} ر.س. يرجى زيادة الميزانية أو تفعيل خيار الضيافة المجانية.`,
+              min_required_budget: cheapestInfluencer,
+              current_budget: campaignBudget,
+              suggestions_count: 0,
+              strategy: null,
+            }),
+            { 
+              status: 400,
+              headers: { ...corsHeaders, "Content-Type": "application/json" } 
+            }
+          );
+        }
+      }
+      
+      // Generic no match message
       return new Response(
         JSON.stringify({ 
-          success: true, 
-          message: "No matching influencers found for criteria",
+          success: false,
+          error: "NO_MATCHES",
+          message: "لم يتم العثور على مؤثرين مناسبين لمعايير الحملة. يرجى تعديل الميزانية أو تفعيل خيار الضيافة المجانية.",
           suggestions_count: 0,
           strategy: null,
         }),
-        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        { 
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" } 
+        }
       );
     }
 

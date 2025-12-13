@@ -29,7 +29,10 @@ const campaignSchema = z.object({
   goal_details: z.string().trim().max(500).optional(),
   content_requirements: z.string().trim().max(1000).optional(),
   budget: z.number().min(500, 'الميزانية يجب أن تكون 500 ريال على الأقل'),
-  start_date: z.date().optional(),
+  start_date: z.date({
+    required_error: 'يجب اختيار تاريخ بدء الحملة',
+    invalid_type_error: 'يجب اختيار تاريخ صحيح',
+  }),
   duration_days: z.number().min(1).max(90).optional(),
   add_bonus_hospitality: z.boolean(),
   target_followers_min: z.number().min(0).optional(),
@@ -154,11 +157,46 @@ const CreateCampaign = () => {
           toast.error('حدث خطأ في تحليل المؤثرين', {
             description: 'يمكنك إعادة التحليل من صفحة الحملة'
           });
+        } else if (matchData && !matchData.success) {
+          // Update campaign status to stop infinite polling
+          await supabase
+            .from('campaigns')
+            .update({ status: 'plan_ready' })
+            .eq('id', campaign.id);
+          
+          // Handle specific error cases from the matching algorithm
+          if (matchData.error === 'BUDGET_TOO_LOW') {
+            toast.error('الميزانية غير كافية', {
+              description: matchData.message || `أقل سعر للمؤثرين هو ${matchData.min_required_budget} ر.س`,
+              duration: 8000,
+            });
+          } else if (matchData.error === 'NO_MATCHES') {
+            toast.error('لم يتم العثور على مؤثرين', {
+              description: matchData.message || 'يرجى تعديل معايير الحملة',
+              duration: 6000,
+            });
+          } else {
+            toast.error('فشل تحليل المؤثرين', {
+              description: matchData.message || 'يرجى المحاولة مرة أخرى'
+            });
+          }
         } else {
+          // Update campaign status to stop polling
+          await supabase
+            .from('campaigns')
+            .update({ status: 'plan_ready' })
+            .eq('id', campaign.id);
+          
           const count = matchData?.suggestions_count || 0;
-          toast.success('تم العثور على مؤثرين مناسبين!', {
-            description: `تم اقتراح ${count} مؤثر للحملة`
-          });
+          if (count > 0) {
+            toast.success('تم العثور على مؤثرين مناسبين!', {
+              description: `تم اقتراح ${count} مؤثر للحملة`
+            });
+          } else {
+            toast.warning('لم يتم العثور على مؤثرين', {
+              description: 'يمكنك تعديل معايير الحملة'
+            });
+          }
         }
       } catch (matchError) {
         console.error('Matching error:', matchError);
@@ -388,14 +426,15 @@ const CreateCampaign = () => {
                 </div>
 
                 <div className="space-y-2">
-                  <Label>تاريخ البدء</Label>
+                  <Label>تاريخ البدء *</Label>
                   <Popover>
                     <PopoverTrigger asChild>
                       <Button
                         variant="outline"
                         className={cn(
                           'w-full justify-start text-left font-normal',
-                          !form.watch('start_date') && 'text-muted-foreground'
+                          !form.watch('start_date') && 'text-muted-foreground',
+                          form.formState.errors.start_date && 'border-destructive'
                         )}
                       >
                         <CalendarIcon className="me-2 h-4 w-4" />
@@ -406,7 +445,7 @@ const CreateCampaign = () => {
                       <Calendar
                         mode="single"
                         selected={form.watch('start_date')}
-                        onSelect={(date) => form.setValue('start_date', date)}
+                        onSelect={(date) => form.setValue('start_date', date, { shouldValidate: true })}
                         disabled={(date) => {
                           const minDate = new Date();
                           minDate.setDate(minDate.getDate() + 3);
@@ -418,17 +457,25 @@ const CreateCampaign = () => {
                       />
                     </PopoverContent>
                   </Popover>
+                  {form.formState.errors.start_date && (
+                    <p className="text-sm text-destructive">{form.formState.errors.start_date.message}</p>
+                  )}
                 </div>
 
-                <div className="flex items-center space-x-2 space-x-reverse p-4 bg-muted/30 rounded-lg">
-                  <Checkbox
-                    id="add_bonus_hospitality"
-                    checked={form.watch('add_bonus_hospitality')}
-                    onCheckedChange={(checked) => form.setValue('add_bonus_hospitality', checked as boolean)}
-                  />
-                  <Label htmlFor="add_bonus_hospitality" className="font-normal cursor-pointer">
-                    إضافة ضيافة كمكافأة إضافية للمؤثرين
-                  </Label>
+                <div className="p-4 bg-muted/30 rounded-lg space-y-2">
+                  <div className="flex items-center space-x-2 space-x-reverse">
+                    <Checkbox
+                      id="add_bonus_hospitality"
+                      checked={form.watch('add_bonus_hospitality')}
+                      onCheckedChange={(checked) => form.setValue('add_bonus_hospitality', checked as boolean)}
+                    />
+                    <Label htmlFor="add_bonus_hospitality" className="font-normal cursor-pointer">
+                      إضافة حتى ٥ مؤثرين بالضيافة (بدون مقابل مالي)
+                    </Label>
+                  </div>
+                  <p className="text-sm text-muted-foreground mr-6">
+                    عند تفعيل هذا الخيار سيتم إضافة ما يصل إلى ٥ مؤثرين من نوع الضيافة مجانًا بجانب المؤثرين المدفوعين.
+                  </p>
                 </div>
 
                 <div className="bg-primary/5 border border-primary/20 p-4 rounded-lg">

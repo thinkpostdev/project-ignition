@@ -17,7 +17,7 @@ const PendingApproval = () => {
       return;
     }
 
-    // Check approval status periodically (every 30 seconds)
+    // Check approval status periodically (every 30 seconds) - only for influencers
     const checkApproval = async () => {
       const { data: userRole } = await supabase
         .from('user_roles')
@@ -27,18 +27,8 @@ const PendingApproval = () => {
 
       if (!userRole) return;
 
-      if (userRole.role === 'owner') {
-        const { data: ownerProfile } = await supabase
-          .from('owner_profiles')
-          .select('is_approved')
-          .eq('user_id', user.id)
-          .single();
-
-        if (ownerProfile?.is_approved) {
-          toast.success('تم الموافقة على حسابك!');
-          navigate('/dashboard/owner');
-        }
-      } else if (userRole.role === 'influencer') {
+      // Only influencers need approval
+      if (userRole.role === 'influencer') {
         const { data: influencerProfile } = await supabase
           .from('influencer_profiles')
           .select('is_approved')
@@ -49,6 +39,9 @@ const PendingApproval = () => {
           toast.success('تم الموافقة على حسابك!');
           navigate('/dashboard/influencer');
         }
+      } else if (userRole.role === 'owner') {
+        // Owners don't need approval, redirect them directly
+        navigate('/dashboard/owner');
       }
     };
 
@@ -62,28 +55,28 @@ const PendingApproval = () => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4 bg-muted/30">
-      <Card className="w-full max-w-lg p-8 shadow-elevated text-center space-y-6">
+    <div className="min-h-screen flex items-center justify-center p-3 sm:p-4 bg-muted/30">
+      <Card className="w-full max-w-lg p-5 sm:p-8 shadow-elevated text-center space-y-4 sm:space-y-6">
         <div className="flex justify-center">
-          <div className="rounded-full bg-amber-100 p-4">
-            <Clock className="h-12 w-12 text-amber-600" />
+          <div className="rounded-full bg-amber-100 p-3 sm:p-4">
+            <Clock className="h-10 w-10 sm:h-12 sm:w-12 text-amber-600" />
           </div>
         </div>
 
-        <div className="space-y-3">
-          <h1 className="text-3xl font-bold">حسابك قيد المراجعة</h1>
-          <p className="text-xl text-muted-foreground">
+        <div className="space-y-2 sm:space-y-3">
+          <h1 className="text-2xl sm:text-3xl font-bold">حسابك قيد المراجعة</h1>
+          <p className="text-lg sm:text-xl text-muted-foreground">
             شكراً لتسجيلك معنا
           </p>
         </div>
 
-        <div className="bg-muted/50 p-6 rounded-lg">
-          <p className="text-lg leading-relaxed">
+        <div className="bg-muted/50 p-4 sm:p-6 rounded-lg">
+          <p className="text-base sm:text-lg leading-relaxed">
             تم استلام طلبك بنجاح. سنقوم بمراجعة المعلومات المُقدمة والتواصل معك في حال الموافقة على حسابك.
           </p>
         </div>
 
-        <div className="space-y-2 text-sm text-muted-foreground">
+        <div className="space-y-2 text-xs sm:text-sm text-muted-foreground">
           <p>• عادةً ما تستغرق عملية المراجعة من 24 إلى 48 ساعة</p>
           <p>• سيتم إعلامك عبر البريد الإلكتروني عند الموافقة</p>
           <p>• يمكنك تسجيل الدخول لاحقاً للتحقق من حالة حسابك</p>

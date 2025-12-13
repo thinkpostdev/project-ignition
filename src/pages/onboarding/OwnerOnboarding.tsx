@@ -151,7 +151,7 @@ const OwnerOnboarding = () => {
             tiktok_username: finalData.tiktok_username,
             snapchat_username: finalData.snapchat_username,
             target_audience: finalData.target_audience,
-            is_approved: false,
+            is_approved: true,
             updated_at: new Date().toISOString(),
           })
           .eq('user_id', user.id)
@@ -180,7 +180,7 @@ const OwnerOnboarding = () => {
             tiktok_username: finalData.tiktok_username,
             snapchat_username: finalData.snapchat_username,
             target_audience: finalData.target_audience,
-            is_approved: false,
+            is_approved: true,
           }])
           .select()
           .single();
@@ -206,7 +206,7 @@ const OwnerOnboarding = () => {
       }
 
       toast.success('تم حفظ الملف الشخصي بنجاح');
-      navigate('/pending-approval');
+      navigate('/dashboard/owner');
     } catch (error: any) {
       toast.error(error.message || 'حدث خطأ أثناء حفظ البيانات');
     } finally {
@@ -234,10 +234,10 @@ const OwnerOnboarding = () => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4 bg-muted/30">
-      <Card className="w-full max-w-2xl p-8 shadow-elevated">
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold mb-2">إعداد ملف المنشأة</h1>
+    <div className="min-h-screen flex items-center justify-center p-3 sm:p-4 bg-muted/30">
+      <Card className="w-full max-w-2xl p-5 sm:p-8 shadow-elevated">
+        <div className="mb-6 sm:mb-8">
+          <h1 className="text-2xl sm:text-3xl font-bold mb-2">إعداد ملف المنشأة</h1>
           <div className="flex gap-2 mt-4">
             {[1, 2, 3].map((step) => (
               <div

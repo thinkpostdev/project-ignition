@@ -30,19 +30,8 @@ export const ProtectedRoute = ({ children, requiredRole }: ProtectedRouteProps) 
             return;
           }
 
-          // Check approval status
-          if (data.role === 'owner') {
-            const { data: ownerProfile } = await supabase
-              .from('owner_profiles')
-              .select('is_approved')
-              .eq('user_id', user.id)
-              .single();
-
-            if (ownerProfile && !ownerProfile.is_approved) {
-              navigate('/pending-approval');
-              return;
-            }
-          } else if (data.role === 'influencer') {
+          // Check approval status (only for influencers)
+          if (data.role === 'influencer') {
             const { data: influencerProfile } = await supabase
               .from('influencer_profiles')
               .select('is_approved')

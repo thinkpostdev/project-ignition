@@ -98,18 +98,18 @@ const Register = () => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4 bg-muted/30">
-      <div className="absolute top-4 right-4">
+    <div className="min-h-screen flex items-center justify-center p-3 sm:p-4 bg-muted/30">
+      <div className="absolute top-3 right-3 sm:top-4 sm:right-4">
         <LanguageSwitcher />
       </div>
 
-      <Card className="w-full max-w-md p-8 shadow-elevated">
-        <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold mb-2">{t('auth.register.title')}</h1>
-          <p className="text-muted-foreground">{t('auth.register.subtitle')}</p>
+      <Card className="w-full max-w-md p-5 sm:p-8 shadow-elevated">
+        <div className="text-center mb-6 sm:mb-8">
+          <h1 className="text-2xl sm:text-3xl font-bold mb-2">{t('auth.register.title')}</h1>
+          <p className="text-sm sm:text-base text-muted-foreground">{t('auth.register.subtitle')}</p>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-6">
+        <form onSubmit={handleSubmit} className="space-y-4 sm:space-y-6">
           <div className="space-y-2">
             <Label htmlFor="fullName">{t('auth.register.fullName')}</Label>
             <Input 

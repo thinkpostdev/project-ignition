@@ -401,68 +401,68 @@ const InfluencerDashboard = () => {
     <div className="min-h-screen bg-muted/30">
       {/* Header */}
       <header className="bg-background border-b sticky top-0 z-50">
-        <div className="container mx-auto px-4 h-16 flex items-center justify-between">
-          <h1 className="text-xl font-bold bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
+        <div className="container mx-auto px-3 sm:px-4 h-14 sm:h-16 flex items-center justify-between">
+          <h1 className="text-base sm:text-xl font-bold bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
             InfluencerHub
           </h1>
-          <div className="flex items-center gap-3">
-            <Button variant="outline" size="sm" asChild>
+          <div className="flex items-center gap-1.5 sm:gap-3">
+            <Button variant="outline" size="sm" className="text-xs sm:text-sm px-2 sm:px-3" asChild>
               <Link to="/settings/influencer">
-                <Settings className="h-4 w-4 me-2" />
-                الإعدادات
+                <Settings className="h-3 w-3 sm:h-4 sm:w-4 sm:me-2" />
+                <span className="hidden sm:inline">الإعدادات</span>
               </Link>
             </Button>
             <LanguageSwitcher />
-            <Button variant="ghost" size="sm" onClick={handleLogout}>
+            <Button variant="ghost" size="sm" className="text-xs sm:text-sm px-2 sm:px-3" onClick={handleLogout}>
               {t('common.logout')}
             </Button>
           </div>
         </div>
       </header>
 
-      <div className="container mx-auto px-4 py-8">
+      <div className="container mx-auto px-3 sm:px-4 py-4 sm:py-6 md:py-8">
         {/* Stats Cards */}
-        <div className="grid md:grid-cols-3 gap-6 mb-8">
-          <Card className="p-6 hover:shadow-elevated transition-shadow">
-            <div className="flex items-center justify-between mb-4">
-              <div className="h-12 w-12 rounded-xl bg-success/10 flex items-center justify-center">
-                <Wallet className="h-6 w-6 text-success" />
+        <div className="grid sm:grid-cols-2 md:grid-cols-3 gap-4 sm:gap-6 mb-6 sm:mb-8">
+          <Card className="p-4 sm:p-6 hover:shadow-elevated transition-shadow">
+            <div className="flex items-center justify-between mb-3 sm:mb-4">
+              <div className="h-10 w-10 sm:h-12 sm:w-12 rounded-xl bg-success/10 flex items-center justify-center">
+                <Wallet className="h-5 w-5 sm:h-6 sm:w-6 text-success" />
               </div>
-              <span className="text-3xl font-bold">{stats.balance.toLocaleString()}</span>
+              <span className="text-2xl sm:text-3xl font-bold">{stats.balance.toLocaleString()}</span>
             </div>
-            <h3 className="font-semibold text-muted-foreground">
+            <h3 className="font-semibold text-sm sm:text-base text-muted-foreground">
               {t('dashboard.influencer.balance')} ر.س
             </h3>
           </Card>
 
-          <Card className="p-6 hover:shadow-elevated transition-shadow">
-            <div className="flex items-center justify-between mb-4">
-              <div className="h-12 w-12 rounded-xl bg-primary/10 flex items-center justify-center">
-                <Briefcase className="h-6 w-6 text-primary" />
+          <Card className="p-4 sm:p-6 hover:shadow-elevated transition-shadow">
+            <div className="flex items-center justify-between mb-3 sm:mb-4">
+              <div className="h-10 w-10 sm:h-12 sm:w-12 rounded-xl bg-primary/10 flex items-center justify-center">
+                <Briefcase className="h-5 w-5 sm:h-6 sm:w-6 text-primary" />
               </div>
-              <span className="text-3xl font-bold">{stats.activeCollaborations}</span>
+              <span className="text-2xl sm:text-3xl font-bold">{stats.activeCollaborations}</span>
             </div>
-            <h3 className="font-semibold text-muted-foreground">
+            <h3 className="font-semibold text-sm sm:text-base text-muted-foreground">
               {t('dashboard.influencer.activeCollaborations')}
             </h3>
           </Card>
 
-          <Card className="p-6 hover:shadow-elevated transition-shadow">
-            <div className="flex items-center justify-between mb-4">
-              <div className="h-12 w-12 rounded-xl bg-secondary/10 flex items-center justify-center">
-                <Mail className="h-6 w-6 text-secondary" />
+          <Card className="p-4 sm:p-6 hover:shadow-elevated transition-shadow sm:col-span-2 md:col-span-1">
+            <div className="flex items-center justify-between mb-3 sm:mb-4">
+              <div className="h-10 w-10 sm:h-12 sm:w-12 rounded-xl bg-secondary/10 flex items-center justify-center">
+                <Mail className="h-5 w-5 sm:h-6 sm:w-6 text-secondary" />
               </div>
-              <span className="text-3xl font-bold">{stats.pendingInvitations}</span>
+              <span className="text-2xl sm:text-3xl font-bold">{stats.pendingInvitations}</span>
             </div>
-            <h3 className="font-semibold text-muted-foreground">
+            <h3 className="font-semibold text-sm sm:text-base text-muted-foreground">
               {t('dashboard.influencer.pendingInvitations')}
             </h3>
           </Card>
         </div>
 
         {/* New Opportunities - Pending Invitations */}
-        <Card className="p-6 mb-6">
-          <h3 className="text-xl font-semibold mb-4">
+        <Card className="p-4 sm:p-6 mb-4 sm:mb-6">
+          <h3 className="text-lg sm:text-xl font-semibold mb-4">
             {t('dashboard.influencer.newOpportunities')}
           </h3>
           {loading ? (
@@ -475,44 +475,45 @@ const InfluencerDashboard = () => {
               {invitations
                 .filter(inv => inv.status === 'pending')
                 .map((invitation) => (
-                  <Card key={invitation.id} className="p-4 hover:border-primary transition-colors border-r-4 border-r-primary">
+                  <Card key={invitation.id} className="p-3 sm:p-4 hover:border-primary transition-colors border-r-4 border-r-primary">
                     <div className="space-y-3">
-                      <div className="flex items-start justify-between gap-4">
-                        <div className="flex-1 space-y-2">
+                      <div className="flex items-start justify-between gap-2 sm:gap-4">
+                        <div className="flex-1 space-y-2 min-w-0">
                           <div className="flex items-center gap-2 flex-wrap">
-                            <h4 className="font-semibold text-lg">
+                            <h4 className="font-semibold text-base sm:text-lg break-words">
                               {invitation.campaigns?.owner_profiles?.business_name || invitation.campaigns?.title || 'حملة جديدة'}
                             </h4>
                             {invitation.campaigns?.goal && (
-                              <Badge variant="secondary">{getGoalLabel(invitation.campaigns.goal)}</Badge>
+                              <Badge variant="secondary" className="text-xs">{getGoalLabel(invitation.campaigns.goal)}</Badge>
                             )}
                           </div>
-                          <p className="text-sm text-muted-foreground flex items-center gap-1">
+                          <p className="text-xs sm:text-sm text-muted-foreground flex items-center gap-1">
                             📍 {invitation.campaigns?.branches?.neighborhood && `${invitation.campaigns.branches.neighborhood}، `}
                             {invitation.campaigns?.branches?.city || 'غير محدد'}
                           </p>
                           {invitation.campaigns?.description && (
-                            <p className="text-sm text-muted-foreground leading-relaxed">
+                            <p className="text-xs sm:text-sm text-muted-foreground leading-relaxed line-clamp-3">
                               {invitation.campaigns.description.slice(0, 150)}
                               {invitation.campaigns.description.length > 150 ? '...' : ''}
                             </p>
                           )}
-                          <div className="flex items-center gap-4 flex-wrap">
+                          <div className="flex items-center gap-3 sm:gap-4 flex-wrap">
                             {invitation.offered_price && invitation.offered_price > 0 ? (
                               <div className="flex items-center gap-1">
                                 <DollarSign className="h-4 w-4 text-success" />
-                                <span className="text-lg font-bold text-success">
+                                <span className="text-base sm:text-lg font-bold text-success">
                                   {invitation.offered_price.toLocaleString()} ر.س
                                 </span>
                               </div>
                             ) : (
-                              <Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-200">
+                              <Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-200 text-xs">
                                 ضيافة مجانية
                               </Badge>
                             )}
-                            <span className="text-sm text-muted-foreground flex items-center gap-1">
-                              <Clock className="h-4 w-4" />
-                              {new Date(invitation.created_at).toLocaleDateString('ar-SA', { calendar: 'gregory' })}
+                            <span className="text-xs sm:text-sm text-muted-foreground flex items-center gap-1">
+                              <Clock className="h-3 w-3 sm:h-4 sm:w-4" />
+                              <span className="hidden sm:inline">{new Date(invitation.created_at).toLocaleDateString('ar-SA', { calendar: 'gregory' })}</span>
+                              <span className="sm:hidden">{new Date(invitation.created_at).toLocaleDateString('ar-SA', { calendar: 'gregory', month: 'short', day: 'numeric' })}</span>
                             </span>
                           </div>
                           {/* Scheduled Visit Date */}
@@ -534,33 +535,36 @@ const InfluencerDashboard = () => {
                       </div>
                       
                       {/* Action Buttons */}
-                      <div className="flex items-center gap-2 pt-2 border-t">
+                      <div className="flex flex-col sm:flex-row items-stretch gap-2 pt-2 border-t">
                         <Button 
                           size="sm" 
                           variant="outline"
                           onClick={() => handleOpenCampaignDetails(invitation)}
-                          className="flex-1"
+                          className="flex-1 text-xs sm:text-sm h-9 sm:h-10"
                         >
-                          <Info className="h-4 w-4 me-1" />
-                          عرض التفاصيل
+                          <Info className="h-3 w-3 sm:h-4 sm:w-4 me-1" />
+                          <span className="hidden sm:inline">عرض التفاصيل</span>
+                          <span className="sm:hidden">التفاصيل</span>
                         </Button>
-                        <Button 
-                          size="sm" 
-                          variant="outline"
-                          onClick={() => handleRejectInvitation(invitation.id)}
-                          className="text-destructive hover:bg-destructive/10"
-                        >
-                          <X className="h-4 w-4 me-1" />
-                          رفض
-                        </Button>
-                        <Button 
-                          size="sm"
-                          onClick={() => handleAcceptInvitation(invitation.id)}
-                          className="bg-success hover:bg-success/90"
-                        >
-                          <CheckCircle2 className="h-4 w-4 me-1" />
-                          قبول
-                        </Button>
+                        <div className="flex gap-2 sm:flex-none">
+                          <Button 
+                            size="sm" 
+                            variant="outline"
+                            onClick={() => handleRejectInvitation(invitation.id)}
+                            className="text-destructive hover:bg-destructive/10 flex-1 sm:flex-none text-xs sm:text-sm h-9 sm:h-10"
+                          >
+                            <X className="h-3 w-3 sm:h-4 sm:w-4 sm:me-1" />
+                            <span className="hidden sm:inline">رفض</span>
+                          </Button>
+                          <Button 
+                            size="sm"
+                            onClick={() => handleAcceptInvitation(invitation.id)}
+                            className="bg-success hover:bg-success/90 flex-1 sm:flex-none text-xs sm:text-sm h-9 sm:h-10"
+                          >
+                            <CheckCircle2 className="h-3 w-3 sm:h-4 sm:w-4 sm:me-1" />
+                            <span className="hidden sm:inline">قبول</span>
+                          </Button>
+                        </div>
                       </div>
                     </div>
                   </Card>
@@ -575,8 +579,8 @@ const InfluencerDashboard = () => {
         </Card>
 
         {/* My Collaborations - Accepted Invitations with Proof Submission */}
-        <Card className="p-6">
-          <h3 className="text-xl font-semibold mb-4">
+        <Card className="p-4 sm:p-6">
+          <h3 className="text-lg sm:text-xl font-semibold mb-4">
             الحملات المقبولة
           </h3>
           {invitations.filter(inv => inv.status === 'accepted').length > 0 ? (
@@ -723,7 +727,7 @@ const InfluencerDashboard = () => {
 
         {/* Proof Upload Dialog */}
         <Dialog open={proofUploadDialogOpen} onOpenChange={setProofUploadDialogOpen}>
-          <DialogContent className="sm:max-w-[500px]">
+          <DialogContent className="w-[95vw] sm:max-w-[500px] p-4 sm:p-6">
             <DialogHeader>
               <DialogTitle>رفع رابط المحتوى</DialogTitle>
               <DialogDescription>
@@ -782,7 +786,7 @@ const InfluencerDashboard = () => {
 
         {/* Campaign Details Dialog */}
         <Dialog open={campaignDetailsDialogOpen} onOpenChange={setCampaignDetailsDialogOpen}>
-          <DialogContent className="sm:max-w-[700px] max-h-[80vh] overflow-y-auto">
+          <DialogContent className="w-[95vw] sm:max-w-[700px] max-h-[85vh] sm:max-h-[80vh] overflow-y-auto p-4 sm:p-6">
             <DialogHeader>
               <DialogTitle className="text-2xl">تفاصيل الحملة</DialogTitle>
               <DialogDescription>

@@ -90,105 +90,105 @@ const OwnerDashboard = () => {
     <div className="min-h-screen bg-muted/30">
       {/* Header */}
       <header className="bg-background border-b sticky top-0 z-50">
-        <div className="container mx-auto px-4 h-16 flex items-center justify-between">
-          <h1 className="text-xl font-bold bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
+        <div className="container mx-auto px-3 sm:px-4 h-14 sm:h-16 flex items-center justify-between">
+          <h1 className="text-base sm:text-xl font-bold bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
             InfluencerHub
           </h1>
-          <div className="flex items-center gap-3">
-            <Button variant="outline" size="sm" asChild>
+          <div className="flex items-center gap-1.5 sm:gap-3">
+            <Button variant="outline" size="sm" className="text-xs sm:text-sm px-2 sm:px-3" asChild>
               <Link to="/settings/owner">
-                <Settings className="h-4 w-4 me-2" />
-                الإعدادات
+                <Settings className="h-3 w-3 sm:h-4 sm:w-4 sm:me-2" />
+                <span className="hidden sm:inline">الإعدادات</span>
               </Link>
             </Button>
             <LanguageSwitcher />
-            <Button variant="ghost" size="sm" onClick={handleLogout}>
+            <Button variant="ghost" size="sm" className="text-xs sm:text-sm px-2 sm:px-3" onClick={handleLogout}>
               {t('common.logout')}
             </Button>
           </div>
         </div>
       </header>
 
-      <div className="container mx-auto px-4 py-8">
+      <div className="container mx-auto px-3 sm:px-4 py-4 sm:py-6 md:py-8">
         {/* Greeting */}
-        <div className="mb-8">
-          <h2 className="text-3xl font-bold mb-2">
+        <div className="mb-6 sm:mb-8">
+          <h2 className="text-xl sm:text-2xl md:text-3xl font-bold mb-3 sm:mb-4">
             {t('dashboard.owner.greeting')} {profile?.full_name || ''} 👋
           </h2>
-          <Button size="lg" className="shadow-glow" asChild>
+          <Button size="lg" className="shadow-glow w-full sm:w-auto text-sm sm:text-base h-11 sm:h-12" asChild>
             <Link to="/dashboard/owner/campaigns/new">
-              <Plus className="h-5 w-5 me-2" />
+              <Plus className="h-4 w-4 sm:h-5 sm:w-5 me-2" />
               {t('dashboard.owner.createCampaign')}
             </Link>
           </Button>
         </div>
 
         {/* Stats Cards */}
-        <div className="grid md:grid-cols-3 gap-6 mb-8">
-          <Card className="p-6 hover:shadow-elevated transition-shadow">
-            <div className="flex items-center justify-between mb-4">
-              <div className="h-12 w-12 rounded-xl bg-primary/10 flex items-center justify-center">
-                <TrendingUp className="h-6 w-6 text-primary" />
+        <div className="grid sm:grid-cols-2 md:grid-cols-3 gap-4 sm:gap-6 mb-6 sm:mb-8">
+          <Card className="p-4 sm:p-6 hover:shadow-elevated transition-shadow">
+            <div className="flex items-center justify-between mb-3 sm:mb-4">
+              <div className="h-10 w-10 sm:h-12 sm:w-12 rounded-xl bg-primary/10 flex items-center justify-center">
+                <TrendingUp className="h-5 w-5 sm:h-6 sm:w-6 text-primary" />
               </div>
-              <span className="text-3xl font-bold">{stats.activeCampaigns}</span>
+              <span className="text-2xl sm:text-3xl font-bold">{stats.activeCampaigns}</span>
             </div>
-            <h3 className="font-semibold text-muted-foreground">
+            <h3 className="font-semibold text-sm sm:text-base text-muted-foreground">
               {t('dashboard.owner.activeCampaigns')}
             </h3>
           </Card>
 
-          <Card className="p-6 hover:shadow-elevated transition-shadow">
-            <div className="flex items-center justify-between mb-4">
-              <div className="h-12 w-12 rounded-xl bg-secondary/10 flex items-center justify-center">
-                <Users className="h-6 w-6 text-secondary" />
+          <Card className="p-4 sm:p-6 hover:shadow-elevated transition-shadow">
+            <div className="flex items-center justify-between mb-3 sm:mb-4">
+              <div className="h-10 w-10 sm:h-12 sm:w-12 rounded-xl bg-secondary/10 flex items-center justify-center">
+                <Users className="h-5 w-5 sm:h-6 sm:w-6 text-secondary" />
               </div>
-              <span className="text-3xl font-bold">{stats.pendingOffers}</span>
+              <span className="text-2xl sm:text-3xl font-bold">{stats.pendingOffers}</span>
             </div>
-            <h3 className="font-semibold text-muted-foreground">
+            <h3 className="font-semibold text-sm sm:text-base text-muted-foreground">
               {t('dashboard.owner.pendingResponses')}
             </h3>
           </Card>
 
-          <Card className="p-6 hover:shadow-elevated transition-shadow">
-            <div className="flex items-center justify-between mb-4">
-              <div className="h-12 w-12 rounded-xl bg-accent/10 flex items-center justify-center">
-                <DollarSign className="h-6 w-6 text-accent" />
+          <Card className="p-4 sm:p-6 hover:shadow-elevated transition-shadow sm:col-span-2 md:col-span-1">
+            <div className="flex items-center justify-between mb-3 sm:mb-4">
+              <div className="h-10 w-10 sm:h-12 sm:w-12 rounded-xl bg-accent/10 flex items-center justify-center">
+                <DollarSign className="h-5 w-5 sm:h-6 sm:w-6 text-accent" />
               </div>
-              <span className="text-3xl font-bold">{stats.totalSpent.toLocaleString()}</span>
+              <span className="text-2xl sm:text-3xl font-bold">{stats.totalSpent.toLocaleString()}</span>
             </div>
-            <h3 className="font-semibold text-muted-foreground">
+            <h3 className="font-semibold text-sm sm:text-base text-muted-foreground">
               {t('dashboard.owner.moneySpent')} ر.س
             </h3>
           </Card>
         </div>
 
         {/* Campaigns Table */}
-        <Card className="p-6">
-          <h3 className="text-xl font-semibold mb-4">حملاتي</h3>
+        <Card className="p-4 sm:p-6">
+          <h3 className="text-lg sm:text-xl font-semibold mb-4">حملاتي</h3>
           {campaigns.length > 0 ? (
-            <div className="space-y-4">
+            <div className="space-y-3 sm:space-y-4">
               {campaigns.map((campaign) => (
                 <Link 
                   key={campaign.id} 
                   to={`/dashboard/owner/campaigns/${campaign.id}`}
                   className="block"
                 >
-                  <Card className="p-4 hover:shadow-md transition-shadow cursor-pointer border-l-4 border-l-primary">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <h4 className="font-semibold text-lg">{campaign.title}</h4>
-                        <p className="text-sm text-muted-foreground mt-1">
+                  <Card className="p-3 sm:p-4 hover:shadow-md transition-shadow cursor-pointer border-l-4 border-l-primary">
+                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                      <div className="flex-1 min-w-0">
+                        <h4 className="font-semibold text-base sm:text-lg truncate">{campaign.title}</h4>
+                        <p className="text-xs sm:text-sm text-muted-foreground mt-1 line-clamp-2">
                           {campaign.description?.slice(0, 100)}{campaign.description?.length > 100 ? '...' : ''}
                         </p>
-                          <div className="flex items-center gap-4 mt-2 text-sm text-muted-foreground">
+                        <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 mt-2 text-xs sm:text-sm text-muted-foreground">
                           <span>الميزانية: {campaign.budget?.toLocaleString()} ر.س</span>
                           {campaign.created_at && (
-                            <span>تاريخ الإنشاء: {new Date(campaign.created_at).toLocaleDateString('ar-SA', { calendar: 'gregory' })}</span>
+                            <span className="hidden sm:inline">تاريخ الإنشاء: {new Date(campaign.created_at).toLocaleDateString('ar-SA', { calendar: 'gregory' })}</span>
                           )}
                         </div>
                       </div>
-                      <div className="flex items-center gap-2">
-                        <span className={`px-3 py-1 rounded-full text-xs font-medium ${
+                      <div className="flex items-center justify-end sm:justify-center gap-2">
+                        <span className={`px-2 sm:px-3 py-1 rounded-full text-xs font-medium whitespace-nowrap ${
                           campaign.status === 'in_progress' ? 'bg-green-100 text-green-700' :
                           campaign.status === 'plan_ready' ? 'bg-blue-100 text-blue-700' :
                           campaign.status === 'waiting_influencer_responses' ? 'bg-yellow-100 text-yellow-700' :

@@ -1,0 +1,65 @@
+name: Process Expired Invitations
+
+# This workflow automatically processes invitations that have been pending for more than 48 hours
+# It runs every hour to check for expired invitations and trigger replacement logic
+
+on:
+  schedule:
+    # Runs every hour at minute 0
+    - cron: '0 * * * *'
+  
+  # Allows manual trigger from GitHub Actions UI
+  workflow_dispatch:
+
+jobs:
+  process-expired-invitations:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Process Expired Invitations
+        run: |
+          echo "🔄 Checking for expired invitations..."
+          
+          RESPONSE=$(curl -s -w "\n%{http_code}" -X POST \
+            ${{ secrets.SUPABASE_URL }}/functions/v1/process-expired-invitations \
+            -H "Authorization: Bearer ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}" \
+            -H "Content-Type: application/json")
+          
+          HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
+          BODY=$(echo "$RESPONSE" | head -n-1)
+          
+          echo "Response: $BODY"
+          
+          if [ "$HTTP_CODE" -eq 200 ]; then
+            echo "✅ Successfully processed expired invitations"
+            
+            # Parse and display results
+            EXPIRED_COUNT=$(echo "$BODY" | jq -r '.expired_count // 0')
+            SUCCESSFUL=$(echo "$BODY" | jq -r '.successful // 0')
+            ERRORS=$(echo "$BODY" | jq -r '.errors // 0')
+            
+            echo "📊 Results:"
+            echo "  - Expired invitations: $EXPIRED_COUNT"
+            echo "  - Successfully processed: $SUCCESSFUL"
+            echo "  - Errors: $ERRORS"
+            
+            if [ "$ERRORS" -gt 0 ]; then
+              echo "⚠️  Some invitations had errors during processing"
+              exit 1
+            fi
+          else
+            echo "❌ Failed to process expired invitations (HTTP $HTTP_CODE)"
+            echo "Response: $BODY"
+            exit 1
+          fi
+
+      - name: Notify on Failure
+        if: failure()
+        run: |
+          echo "❌ Expired invitation processing failed!"
+          echo "Please check the logs and ensure:"
+          echo "  1. SUPABASE_URL secret is set correctly"
+          echo "  2. SUPABASE_SERVICE_ROLE_KEY secret is set correctly"
+          echo "  3. Edge function 'process-expired-invitations' is deployed"
+          echo "  4. Database migration has been applied"
+

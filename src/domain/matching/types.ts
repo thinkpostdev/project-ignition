@@ -110,8 +110,12 @@ export interface MatchingSummary {
   paid_influencers: number;
   /** Number of hospitality (free) influencers */
   hospitality_influencers: number;
-  /** Total cost of paid influencers */
+  /** Total cost of paid influencers (before service fee) */
   total_cost: number;
+  /** Service fee (20% of total_cost) */
+  service_fee: number;
+  /** Total cost including service fee */
+  total_cost_with_fee: number;
   /** Total estimated reach (sum of views) */
   total_reach: number;
   /** Budget remaining after selection */

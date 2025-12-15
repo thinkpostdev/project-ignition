@@ -481,7 +481,7 @@ const InfluencerDashboard = () => {
                         <div className="flex-1 space-y-2 min-w-0">
                           <div className="flex items-center gap-2 flex-wrap">
                             <h4 className="font-semibold text-base sm:text-lg break-words">
-                              {invitation.campaigns?.owner_profiles?.business_name || invitation.campaigns?.title || 'حملة جديدة'}
+                              {invitation.campaigns?.title || invitation.campaigns?.owner_profiles?.business_name || 'حملة جديدة'}
                             </h4>
                             {invitation.campaigns?.goal && (
                               <Badge variant="secondary" className="text-xs">{getGoalLabel(invitation.campaigns.goal)}</Badge>
@@ -594,7 +594,7 @@ const InfluencerDashboard = () => {
                         <div className="flex-1 space-y-2">
                           <div className="flex items-center gap-2 flex-wrap">
                             <h4 className="font-semibold">
-                              {invitation.campaigns?.owner_profiles?.business_name || invitation.campaigns?.title || 'حملة'}
+                              {invitation.campaigns?.title || invitation.campaigns?.owner_profiles?.business_name || 'حملة'}
                             </h4>
                             <Badge variant="outline" className="bg-success/10 text-success border-success">
                               <CheckCircle2 className="h-3 w-3 me-1" />

@@ -116,20 +116,31 @@ const CampaignDetail = () => {
   const [paymentDialogOpen, setPaymentDialogOpen] = useState(false);
   const [pollingAttempts, setPollingAttempts] = useState(0);
 
-  // Calculate actual payment amount (sum of pending influencers' prices)
+  // Calculate actual payment amount (sum of pending influencers' prices + 20% service fee)
   const actualPaymentAmount = useMemo(() => {
     const pendingSuggestions = suggestions.filter(s => !s.invitation_status);
     const totalCost = pendingSuggestions.reduce((sum, s) => sum + (s.min_price || 0), 0);
-    return totalCost;
+    const serviceFee = totalCost * 0.20; // 20% service fee
+    return totalCost + serviceFee;
+  }, [suggestions]);
+
+  // Calculate influencers cost (without service fee) for breakdown display
+  const influencersCost = useMemo(() => {
+    const pendingSuggestions = suggestions.filter(s => !s.invitation_status);
+    return pendingSuggestions.reduce((sum, s) => sum + (s.min_price || 0), 0);
   }, [suggestions]);
 
   // Calculate the actual number of unique dates from suggestions (selected influencers)
+  // Exclude rejected invitations from the calculation
   const actualDuration = useMemo(() => {
-    // First check if we have suggestions with scheduled dates
-    const suggestionsWithDates = suggestions.filter(s => s.scheduled_date);
+    // First check if we have suggestions with scheduled dates (excluding declined/rejected)
+    const suggestionsWithDates = suggestions.filter(s => 
+      s.scheduled_date && s.invitation_status !== 'declined'
+    );
     
     if (suggestionsWithDates.length === 0) {
       // Fall back to invitations if no suggestions with dates
+      // invitations are already filtered to 'accepted' only in fetchInvitations
       const invitationsWithDates = invitations.filter(inv => inv.scheduled_date);
       
       if (invitationsWithDates.length === 0) {
@@ -143,7 +154,7 @@ const CampaignDetail = () => {
       return uniqueDates.size;
     }
     
-    // Get unique dates from suggestions
+    // Get unique dates from suggestions (excluding declined)
     const uniqueDates = new Set(
       suggestionsWithDates.map(s => {
         // Extract just the date part (YYYY-MM-DD)
@@ -925,7 +936,10 @@ const CampaignDetail = () => {
           {/* Red Notice */}
           <div className="mb-6 p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
             <p className="text-sm text-red-700 dark:text-red-300 font-medium leading-relaxed">
-              <strong className="text-red-800 dark:text-red-200">ملاحظة:</strong> في حال لم يقبل المؤثّر الدعوة سيتم إرسالها إلى مؤثّر آخر، وإذا لم يتوفّر مؤثّر بديل — أو حتى إذا الموثر الجديد مبلغه أقل — سيتم إعادة المبلغ المتبقي إلى خانة «الفائض» لتتمكّنوا من الاستفادة منه لاحقًا.
+              <strong className="text-red-800 dark:text-red-200">ملاحظة:</strong> في حال لم يقبل المؤثّر الدعوة سيتم إرسالها إلى مؤثّر آخر، وإذا لم يتوفّر مؤثّر بديل — أو حتى إذا كان المؤثر الجديد أجره أقل — سيتم إعادة المبلغ المتبقي إلى خانة «الفائض» لتتمكّنوا من الاستفادة منه لاحقًا.
+            </p>
+            <p className="text-sm text-red-700 dark:text-red-300 font-medium leading-relaxed mt-3">
+              تُحتسب رسوم المنصّة بإضافة نسبة ٢٠٪ على قيمة الفريق الأوّلي من المؤثّرين قبل إرسال الدعوات، وفي حال استبدال مؤثّر بآخر أقل سعرًا تبقى الرسوم محسوبة على نتيجة الفرز الأوّلي دون تغيير.
             </p>
           </div>
 
@@ -1288,8 +1302,15 @@ const CampaignDetail = () => {
                 <p className="text-sm opacity-90 mb-2">المبلغ المطلوب تحويله</p>
                 <p className="text-5xl font-bold mb-1">{actualPaymentAmount.toLocaleString()}</p>
                 <p className="text-xl">ريال سعودي</p>
-                <div className="mt-4 pt-4 border-t border-white/20 text-sm opacity-90">
-                  {suggestions.filter(s => !s.invitation_status).length} مؤثر × أسعارهم الفردية
+                <div className="mt-4 pt-4 border-t border-white/20 space-y-2">
+                  <div className="flex justify-between items-center text-sm opacity-90">
+                    <span>تكلفة المؤثرين ({suggestions.filter(s => !s.invitation_status).length} مؤثر):</span>
+                    <span className="font-semibold">{influencersCost.toLocaleString()} ر.س</span>
+                  </div>
+                  <div className="flex justify-between items-center text-sm opacity-90">
+                    <span>رسوم الخدمة (20%):</span>
+                    <span className="font-semibold">{(influencersCost * 0.20).toLocaleString()} ر.س</span>
+                  </div>
                 </div>
               </div>
 
@@ -1391,7 +1412,7 @@ const CampaignDetail = () => {
               {/* Notice */}
               <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg p-4">
                 <p className="text-sm text-amber-800 dark:text-amber-300 leading-relaxed">
-                  <strong>ملاحظة:</strong> المبلغ المطلوب ({actualPaymentAmount.toLocaleString()} ر.س) هو مجموع أسعار المؤثرين المختارين فقط. بعد الموافقة، سيتم إرسال الدعوات تلقائياً.
+                  <strong>ملاحظة:</strong> المبلغ المطلوب ({actualPaymentAmount.toLocaleString()} ر.س) يشمل تكلفة المؤثرين ({influencersCost.toLocaleString()} ر.س) + رسوم الخدمة 20% ({(influencersCost * 0.20).toLocaleString()} ر.س). بعد الموافقة، سيتم إرسال الدعوات تلقائياً.
                 </p>
               </div>
             </div>

@@ -106,6 +106,8 @@ interface MatchingSummary {
   paid_influencers: number;
   hospitality_influencers: number;
   total_cost: number;
+  service_fee: number;
+  total_cost_with_fee: number;
   total_reach: number;
   remaining_budget: number;
 }
@@ -652,6 +654,8 @@ serve(async (req) => {
     const hospitalitySelected = matchedInfluencers.filter(i => i.is_hospitality_bonus || i.computed_type_label === 'Hospitality');
     
     const totalCost = paidSelected.reduce((sum, inf) => sum + (inf.min_price || 0), 0);
+    const serviceFee = totalCost * 0.20; // 20% service fee
+    const totalCostWithFee = totalCost + serviceFee;
     const totalReach = matchedInfluencers.reduce((sum, inf) => sum + inf.estimated_views, 0);
 
     const strategySummary: MatchingSummary = {
@@ -659,6 +663,8 @@ serve(async (req) => {
       paid_influencers: paidSelected.length,
       hospitality_influencers: hospitalitySelected.length,
       total_cost: totalCost,
+      service_fee: serviceFee,
+      total_cost_with_fee: totalCostWithFee,
       total_reach: totalReach,
       remaining_budget: campaignBudget - totalCost,
     };

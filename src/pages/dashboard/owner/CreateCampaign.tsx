@@ -420,6 +420,9 @@ const CreateCampaign = () => {
                     placeholder="5000"
                     {...form.register('budget', { valueAsNumber: true })}
                   />
+                  <p className="text-xs text-muted-foreground bg-blue-50 dark:bg-blue-900/20 p-2 rounded border border-blue-200 dark:border-blue-800">
+                    💡 <strong>ملاحظة:</strong> عند إتمام الدفع، ستضاف رسوم خدمة بنسبة 20% على تكلفة المؤثرين المختارين.
+                  </p>
                   {form.formState.errors.budget && (
                     <p className="text-sm text-destructive">{form.formState.errors.budget.message}</p>
                   )}

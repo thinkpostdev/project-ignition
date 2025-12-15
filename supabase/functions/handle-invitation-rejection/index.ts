@@ -159,11 +159,9 @@ async function findNewInfluencers(
         return false;
       }
 
-      // Check budget fit
-      if (cost > remainingBudget) {
-        console.log(`[REPLACEMENT] Excluding ${inf.display_name} - price ${cost} exceeds budget ${remainingBudget}`);
-        return false;
-      }
+      // NOTE: We don't check the influencer's min_price against budget here
+      // because the replacement will be paid the rejected influencer's price,
+      // regardless of their usual rate. Budget check is done at the campaign level.
 
       return true;
     });
@@ -220,12 +218,13 @@ async function findNewInfluencers(
  * Finds a suitable replacement influencer for a rejected invitation.
  * 
  * NEW Logic:
- * 1. Calculate remaining budget
- * 2. RE-RUN matching algorithm to get fresh candidates
- * 3. Get list of already-invited influencer IDs
- * 4. Query NEW suggestions, excluding already-invited
- * 5. Pick best-scoring suggestion that fits within budget
- * 6. Return null if no suitable replacement found
+ * 1. Get the rejected influencer's price (this will be the price for replacement)
+ * 2. Calculate remaining budget
+ * 3. RE-RUN matching algorithm to get fresh candidates
+ * 4. Get list of already-invited influencer IDs
+ * 5. Query NEW suggestions, excluding already-invited
+ * 6. Pick best-scoring suggestion (ignoring their min_price)
+ * 7. Return null if no suitable replacement found
  */
 async function findReplacementInfluencer(
   supabase: any,
@@ -235,10 +234,34 @@ async function findReplacementInfluencer(
   suggestion: CampaignSuggestion | null;
   remainingBudget: number;
   scheduledDate: string | null;
+  rejectedInfluencerPrice: number;
 }> {
   console.log(`[REPLACEMENT] Finding replacement for campaign ${campaignId}, rejected influencer ${rejectedInfluencerId}`);
 
-  // 1. Fetch campaign details with branch info
+  // 1. Fetch the invitation to get the original price
+  // NOTE: We don't filter by status because there's a race condition - 
+  // the frontend calls this function immediately after updating status,
+  // but the DB update might not be committed yet. So we just get any invitation.
+  const { data: rejectedInvitations, error: rejectedError } = await supabase
+    .from("influencer_invitations")
+    .select("offered_price, id, status")
+    .eq("campaign_id", campaignId)
+    .eq("influencer_id", rejectedInfluencerId)
+    .order("created_at", { ascending: false })
+    .limit(1);
+
+  if (rejectedError || !rejectedInvitations || rejectedInvitations.length === 0) {
+    console.error("[REPLACEMENT] Failed to fetch invitation:", rejectedError);
+    console.error("[REPLACEMENT] Campaign ID:", campaignId, "Influencer ID:", rejectedInfluencerId);
+    throw new Error("Invitation not found for this influencer in this campaign");
+  }
+
+  const rejectedInvitation = rejectedInvitations[0];
+  const rejectedInfluencerPrice = rejectedInvitation?.offered_price || 0;
+  console.log(`[REPLACEMENT] Found invitation: ID=${rejectedInvitation.id}, Status=${rejectedInvitation.status}, Price=${rejectedInfluencerPrice}`);
+  console.log(`[REPLACEMENT] Replacement will be offered the same price: ${rejectedInfluencerPrice} SAR`);
+
+  // 2. Fetch campaign details with branch info
   const { data: campaign, error: campaignError } = await supabase
     .from("campaigns")
     .select(`
@@ -266,22 +289,25 @@ async function findReplacementInfluencer(
   const allowHospitality = campaign.add_bonus_hospitality || false;
   console.log(`[REPLACEMENT] Campaign budget: ${totalBudget}, city: ${branchCity}, hospitality: ${allowHospitality}`);
 
-  // 2. Fetch all invitations for this campaign (accepted or pending)
-  const { data: invitations, error: invitationsError } = await supabase
+  // 3. Fetch ALL invitations for this campaign (to exclude everyone who ever had an invitation)
+  const { data: allInvitations, error: allInvitationsError } = await supabase
     .from("influencer_invitations")
     .select("id, campaign_id, influencer_id, status, offered_price, scheduled_date")
-    .eq("campaign_id", campaignId)
-    .in("status", ["pending", "accepted"]);
+    .eq("campaign_id", campaignId);
 
-  if (invitationsError) {
-    console.error("[REPLACEMENT] Failed to fetch invitations:", invitationsError);
+  if (allInvitationsError) {
+    console.error("[REPLACEMENT] Failed to fetch invitations:", allInvitationsError);
     throw new Error("Failed to fetch invitations");
   }
 
-  const activeInvitations = invitations || [];
+  // Active invitations are only pending/accepted (for budget calculation)
+  const activeInvitations = (allInvitations || []).filter(inv => 
+    inv.status === 'pending' || inv.status === 'accepted'
+  );
   console.log(`[REPLACEMENT] Active invitations: ${activeInvitations.length}`);
+  console.log(`[REPLACEMENT] Total invitations (including rejected): ${allInvitations?.length || 0}`);
 
-  // 3. Calculate remaining budget
+  // 4. Calculate remaining budget
   // For each invitation, use offered_price if available, otherwise fetch min_price from suggestion
   let usedBudget = 0;
   
@@ -306,22 +332,24 @@ async function findReplacementInfluencer(
   const remainingBudget = totalBudget - usedBudget;
   console.log(`[REPLACEMENT] Used budget: ${usedBudget}, Remaining: ${remainingBudget}`);
 
-  if (remainingBudget <= 0) {
-    console.log("[REPLACEMENT] No remaining budget for replacement");
-    return { suggestion: null, remainingBudget: 0, scheduledDate: null };
+  // Check if we have budget for the rejected influencer's price
+  if (remainingBudget < rejectedInfluencerPrice) {
+    console.log(`[REPLACEMENT] Insufficient budget. Need ${rejectedInfluencerPrice}, have ${remainingBudget}`);
+    return { suggestion: null, remainingBudget, scheduledDate: null, rejectedInfluencerPrice };
   }
 
-  // 4. Get IDs of already-invited influencers (to exclude from consideration)
+  // 5. Get IDs of ALL influencers who ever had an invitation (to exclude from consideration)
+  // This prevents sending invitations back to previously rejected influencers!
   const invitedInfluencerIds = new Set(
-    activeInvitations.map(inv => inv.influencer_id)
+    (allInvitations || []).map(inv => inv.influencer_id)
   );
   
-  // Also exclude the rejected influencer
+  // Also ensure the current rejected influencer is excluded
   invitedInfluencerIds.add(rejectedInfluencerId);
 
-  console.log(`[REPLACEMENT] Excluding ${invitedInfluencerIds.size} already-invited influencers`);
+  console.log(`[REPLACEMENT] Excluding ${invitedInfluencerIds.size} influencers who ever had an invitation`);
 
-  // 5. Query existing suggestions for this campaign
+  // 6. Query existing suggestions for this campaign
   const { data: existingSuggestions } = await supabase
     .from("campaign_influencer_suggestions")
     .select("*")
@@ -330,24 +358,23 @@ async function findReplacementInfluencer(
 
   console.log(`[REPLACEMENT] Existing suggestions: ${existingSuggestions?.length || 0}`);
 
-  // 6. Filter existing suggestions
+  // 7. Filter existing suggestions (only exclude already-invited, ignore their min_price)
+  // We'll pay them the rejected influencer's price regardless of their usual rate
   let candidateSuggestions = (existingSuggestions || []).filter((sug: CampaignSuggestion) => {
     if (invitedInfluencerIds.has(sug.influencer_id)) return false;
-    const cost = sug.min_price || 0;
-    if (cost > remainingBudget) return false;
     return true;
   });
 
   console.log(`[REPLACEMENT] Candidates from existing suggestions: ${candidateSuggestions.length}`);
 
-  // 7. If no candidates from existing suggestions, search ALL influencers
+  // 8. If no candidates from existing suggestions, search ALL influencers
   if (candidateSuggestions.length === 0) {
     console.log("[REPLACEMENT] No candidates in existing suggestions, searching entire database...");
     const newInfluencers = await findNewInfluencers(
       supabase,
       campaignId,
       branchCity,
-      remainingBudget,
+      rejectedInfluencerPrice, // Pass the rejected price for budget display purposes
       invitedInfluencerIds,
       allowHospitality
     );
@@ -355,17 +382,18 @@ async function findReplacementInfluencer(
     console.log(`[REPLACEMENT] Found ${candidateSuggestions.length} new candidates from database`);
   }
 
-  // 8. Check if we have any candidates
+  // 9. Check if we have any candidates
   if (candidateSuggestions.length === 0) {
     console.log("[REPLACEMENT] No suitable replacement found after searching database");
-    return { suggestion: null, remainingBudget, scheduledDate: null };
+    return { suggestion: null, remainingBudget, scheduledDate: null, rejectedInfluencerPrice };
   }
 
-  // Pick the best-scoring candidate
+  // Pick the best-scoring candidate (they'll get paid the rejected influencer's price)
   const bestReplacement = candidateSuggestions[0] as CampaignSuggestion;
-  console.log(`[REPLACEMENT] Found replacement: ${bestReplacement.name} (score: ${bestReplacement.match_score}, price: ${bestReplacement.min_price})`);
+  console.log(`[REPLACEMENT] Found replacement: ${bestReplacement.name} (score: ${bestReplacement.match_score})`);
+  console.log(`[REPLACEMENT] Replacement will be paid: ${rejectedInfluencerPrice} SAR (rejected influencer's price)`);
 
-  // 7. Determine scheduled date for replacement
+  // 10. Determine scheduled date for replacement
   const scheduledDate = determineScheduledDate(campaign, activeInvitations);
   console.log(`[REPLACEMENT] Scheduled date for replacement: ${scheduledDate}`);
 
@@ -373,6 +401,7 @@ async function findReplacementInfluencer(
     suggestion: bestReplacement,
     remainingBudget,
     scheduledDate,
+    rejectedInfluencerPrice,
   };
 }
 
@@ -400,33 +429,51 @@ serve(async (req) => {
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
     // Find replacement influencer
-    const { suggestion, remainingBudget, scheduledDate } = await findReplacementInfluencer(
+    const { suggestion, remainingBudget, scheduledDate, rejectedInfluencerPrice } = await findReplacementInfluencer(
       supabase,
       campaign_id,
       rejected_influencer_id
     );
 
     if (!suggestion) {
-      console.log("[HANDLER] No replacement found - rejection handled without replacement");
+      console.log("[HANDLER] No replacement found - budget remains unchanged");
+      
+      // IMPORTANT: Budget should NEVER change after initial payment!
+      // Budget = original matched BASE total (constant)
+      // When no replacement found:
+      //   - Budget stays the same
+      //   - activeCost decreases (fewer active influencers)  
+      //   - remaining increases automatically (remaining = budget - activeCost)
+      //
+      // The rejected amount is NOT "refunded" - it just becomes "unused" 
+      // and shows in the "remaining" amount. Owner paid upfront for the 
+      // original team × 1.2, and any unused portion stays in campaign scope.
+      
+      console.log(`[HANDLER] Rejected price ${rejectedInfluencerPrice} SAR will show in 'remaining'`);
+      console.log(`[HANDLER] Budget stays constant at original matched BASE total`);
+      
       return new Response(
         JSON.stringify({
           success: true,
           replaced: false,
-          message: "No suitable replacement influencer found within budget",
+          refunded: false,
+          message: `No replacement found. Amount will appear in campaign remaining budget.`,
+          rejected_amount: rejectedInfluencerPrice,
+          rejected_amount_with_fee: rejectedInfluencerPrice * 1.2,
           remaining_budget: remainingBudget,
         }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    // Create new invitation for replacement influencer
+    // Create new invitation for replacement influencer with the SAME price as rejected influencer
     const { data: newInvitation, error: inviteError } = await supabase
       .from("influencer_invitations")
       .insert({
         campaign_id,
         influencer_id: suggestion.influencer_id,
         status: "pending",
-        offered_price: suggestion.min_price || null,
+        offered_price: rejectedInfluencerPrice, // Use rejected influencer's price
         scheduled_date: scheduledDate,
       })
       .select()
@@ -453,7 +500,7 @@ serve(async (req) => {
           city_served: suggestion.city_served,
           platform: suggestion.platform,
           content_type: suggestion.content_type,
-          min_price: suggestion.min_price,
+          min_price: rejectedInfluencerPrice, // Use rejected influencer's price for consistency
           avg_views_val: suggestion.avg_views_val,
           type_label: suggestion.type_label,
           selected: true,
@@ -481,16 +528,16 @@ serve(async (req) => {
       JSON.stringify({
         success: true,
         replaced: true,
-        message: "Replacement influencer invited successfully",
+        message: "Replacement influencer invited successfully with same price as rejected influencer",
         replacement: {
           invitation_id: newInvitation.id,
           influencer_id: suggestion.influencer_id,
           influencer_name: suggestion.name,
-          cost: suggestion.min_price || 0,
+          cost: rejectedInfluencerPrice, // Same price as rejected influencer
           match_score: suggestion.match_score,
           scheduled_date: scheduledDate,
         },
-        remaining_budget: remainingBudget - (suggestion.min_price || 0),
+        remaining_budget: remainingBudget - rejectedInfluencerPrice,
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );

@@ -61,22 +61,32 @@ export default function InfluencersApproval() {
     try {
       setLoading(true);
       
-      // Fetch influencer profiles with joined profile data
+      // Fetch influencer profiles
       const { data: profilesData, error: profilesError } = await supabase
         .from('influencer_profiles')
-        .select(`
-          *,
-          profiles:profiles!inner(full_name)
-        `)
+        .select('*')
         .order('created_at', { ascending: false });
 
       if (profilesError) throw profilesError;
 
+      // Fetch profiles to get full names
+      const userIds = profilesData?.map(p => p.user_id) || [];
+      
+      const { data: profilesInfo } = await supabase
+        .from('profiles')
+        .select('id, full_name')
+        .in('id', userIds);
+
+      // Create a map of user_id -> full_name
+      const profileMap = new Map(
+        profilesInfo?.map(p => [p.id, p.full_name]) || []
+      );
+
       // Transform data to match expected interface
       const transformedData = profilesData?.map(profile => ({
         ...profile,
-        full_name: profile.profiles?.full_name || null,
-        user_email: null, // Email not accessible from client, will show N/A
+        full_name: profileMap.get(profile.user_id) || null,
+        user_email: null, // Email not accessible from client
       })) || [];
 
       setInfluencers(transformedData);

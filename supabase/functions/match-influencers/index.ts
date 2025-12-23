@@ -99,6 +99,7 @@ interface ScoredInfluencer extends Influencer {
   computed_type_label: 'Hospitality' | 'Paid';
   is_hospitality_bonus: boolean;
   estimated_views: number;
+  matched_city: string; // The city this influencer was matched for
 }
 
 interface MatchingSummary {
@@ -361,6 +362,7 @@ function matchInfluencers(
     computed_type_label: determineTypeLabel(inf),
     is_hospitality_bonus: false,
     estimated_views: getAvgViewsValue(inf.avg_views_tiktok, inf.avg_views_val),
+    matched_city: branchCity, // They matched the target city
   }));
   
   // D. Separate Paid vs Hospitality
@@ -442,6 +444,7 @@ function matchInfluencersFallback(
     computed_type_label: determineTypeLabel(inf),
     is_hospitality_bonus: false,
     estimated_views: getAvgViewsValue(inf.avg_views_tiktok, inf.avg_views_val),
+    matched_city: inf.city_served || (inf.cities?.[0] ?? 'غير محدد'), // Fallback mode - show their primary city
   }));
   
   const paidInfluencers = scoredInfluencers
@@ -679,12 +682,13 @@ serve(async (req) => {
     );
 
     // Prepare suggestions for database
+    // Use matched_city which is set correctly by the matching algorithm
     const suggestionsToInsert = influencersWithDates.map(inf => ({
       campaign_id,
       influencer_id: inf.id,
       match_score: inf.match_score,
       name: inf.display_name,
-      city_served: inf.city_served || (inf.cities?.[0] ?? null),
+      city_served: inf.matched_city, // Use the city they were matched for
       platform: inf.primary_platforms?.[0] || 'TikTok',
       content_type: inf.content_type || inf.category,
       min_price: inf.min_price,

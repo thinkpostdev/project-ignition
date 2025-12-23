@@ -391,6 +391,83 @@ const InfluencerDashboard = () => {
     return null;
   };
 
+  // Calculate time remaining for invitation expiration (48 hours from creation)
+  const getTimeRemaining = (createdAt: string) => {
+    const created = new Date(createdAt).getTime();
+    const expiresAt = created + (48 * 60 * 60 * 1000); // 48 hours in milliseconds
+    const now = Date.now();
+    const remaining = expiresAt - now;
+    
+    if (remaining <= 0) {
+      return { expired: true, hours: 0, minutes: 0, urgency: 'expired' };
+    }
+    
+    const hours = Math.floor(remaining / (60 * 60 * 1000));
+    const minutes = Math.floor((remaining % (60 * 60 * 1000)) / (60 * 1000));
+    
+    let urgency: 'high' | 'medium' | 'low' = 'low';
+    if (hours < 6) urgency = 'high';
+    else if (hours < 24) urgency = 'medium';
+    
+    return { expired: false, hours, minutes, urgency };
+  };
+
+  const getExpirationDisplay = (createdAt: string) => {
+    const { expired, hours, minutes, urgency } = getTimeRemaining(createdAt);
+    
+    if (expired) {
+      return (
+        <div className="flex items-center gap-2 text-sm bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg px-3 py-2">
+          <AlertCircle className="h-4 w-4 text-red-600 flex-shrink-0" />
+          <div className="flex-1">
+            <span className="text-red-700 dark:text-red-300 font-semibold">منتهية الصلاحية</span>
+            <p className="text-xs text-red-600 dark:text-red-400 mt-0.5">
+              سيتم رفض هذه الدعوة تلقائياً قريباً
+            </p>
+          </div>
+        </div>
+      );
+    }
+    
+    const bgColor = urgency === 'high' 
+      ? 'bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800' 
+      : urgency === 'medium' 
+        ? 'bg-yellow-50 dark:bg-yellow-900/20 border-yellow-200 dark:border-yellow-800'
+        : 'bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800';
+    
+    const textColor = urgency === 'high'
+      ? 'text-red-700 dark:text-red-300'
+      : urgency === 'medium'
+        ? 'text-yellow-700 dark:text-yellow-300'
+        : 'text-green-700 dark:text-green-300';
+    
+    const iconColor = urgency === 'high'
+      ? 'text-red-600'
+      : urgency === 'medium'
+        ? 'text-yellow-600'
+        : 'text-green-600';
+    
+    return (
+      <div className={`flex items-center gap-2 text-sm border rounded-lg px-3 py-2 ${bgColor}`}>
+        <Clock className={`h-4 w-4 ${iconColor} flex-shrink-0`} />
+        <div className="flex-1">
+          <span className={`${textColor} font-semibold`}>
+            {hours > 0 && `${hours} ساعة`}
+            {hours > 0 && minutes > 0 && ' و '}
+            {minutes > 0 && `${minutes} دقيقة`}
+            {hours === 0 && minutes === 0 && 'أقل من دقيقة'}
+          </span>
+          <span className={`${textColor} text-xs`}> متبقية للرد</span>
+          <p className="text-xs opacity-75 mt-0.5">
+            {urgency === 'high' && '⚠️ يرجى الرد بسرعة!'}
+            {urgency === 'medium' && '⏰ الوقت ينفد'}
+            {urgency === 'low' && '✓ لديك وقت كافٍ للرد'}
+          </p>
+        </div>
+      </div>
+    );
+  };
+
   const handleLogout = async () => {
     await signOut();
     toast.success(t('common.logout'));
@@ -531,6 +608,9 @@ const InfluencerDashboard = () => {
                               </span>
                             </div>
                           )}
+                          
+                          {/* Expiration Countdown */}
+                          {getExpirationDisplay(invitation.created_at)}
                         </div>
                       </div>
                       

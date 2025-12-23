@@ -4,11 +4,11 @@ import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
-import { Clock, Home } from 'lucide-react';
+import { Clock, Home, LogOut } from 'lucide-react';
 import { toast } from 'sonner';
 
 const PendingApproval = () => {
-  const { user } = useAuth();
+  const { user, signOut } = useAuth();
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -54,10 +54,26 @@ const PendingApproval = () => {
     navigate('/');
   };
 
+  const handleLogout = async () => {
+    await signOut();
+    navigate('/auth/login');
+  };
+
   return (
     <div className="min-h-screen flex items-center justify-center p-3 sm:p-4 bg-muted/30">
-      <Card className="w-full max-w-lg p-5 sm:p-8 shadow-elevated text-center space-y-4 sm:space-y-6">
-        <div className="flex justify-center">
+      <Card className="w-full max-w-lg p-5 sm:p-8 shadow-elevated text-center space-y-4 sm:space-y-6 relative">
+        {/* Logout Button */}
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={handleLogout}
+          className="absolute top-4 right-4 gap-2 text-muted-foreground hover:text-destructive"
+        >
+          <LogOut className="h-4 w-4" />
+          <span className="hidden sm:inline">تسجيل خروج</span>
+        </Button>
+
+        <div className="flex justify-center pt-4">
           <div className="rounded-full bg-amber-100 p-3 sm:p-4">
             <Clock className="h-10 w-10 sm:h-12 sm:w-12 text-amber-600" />
           </div>

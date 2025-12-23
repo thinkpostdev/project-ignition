@@ -7,6 +7,7 @@ import { I18nextProvider } from 'react-i18next';
 import i18n from './i18n/config';
 import { AuthProvider } from './hooks/useAuth';
 import { ProtectedRoute } from './components/ProtectedRoute';
+import { AdminRoute } from './components/AdminRoute';
 import Landing from "./pages/Landing";
 import Login from "./pages/auth/Login";
 import Register from "./pages/auth/Register";
@@ -20,6 +21,10 @@ import OwnerProfile from './pages/settings/OwnerProfile';
 import InfluencerProfile from './pages/settings/InfluencerProfile';
 import PendingApproval from './pages/PendingApproval';
 import NotFound from './pages/NotFound';
+import AdminDashboard from './pages/admin/AdminDashboard';
+import InfluencersApproval from './pages/admin/InfluencersApproval';
+import CampaignsManagement from './pages/admin/CampaignsManagement';
+import DeveloperTracking from './pages/admin/DeveloperTracking';
 
 const queryClient = new QueryClient();
 
@@ -84,6 +89,39 @@ const App = () => (
                 <ProtectedRoute requiredRole="influencer">
                   <InfluencerProfile />
                 </ProtectedRoute>
+              } 
+            />
+            {/* Admin Routes */}
+            <Route 
+              path="/admin" 
+              element={
+                <AdminRoute>
+                  <AdminDashboard />
+                </AdminRoute>
+              } 
+            />
+            <Route 
+              path="/admin/influencers" 
+              element={
+                <AdminRoute>
+                  <InfluencersApproval />
+                </AdminRoute>
+              } 
+            />
+            <Route 
+              path="/admin/campaigns" 
+              element={
+                <AdminRoute>
+                  <CampaignsManagement />
+                </AdminRoute>
+              } 
+            />
+            <Route 
+              path="/admin/developer-tracking" 
+              element={
+                <AdminRoute>
+                  <DeveloperTracking />
+                </AdminRoute>
               } 
             />
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}

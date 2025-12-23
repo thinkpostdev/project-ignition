@@ -21,18 +21,32 @@ const Login = () => {
 
   useEffect(() => {
     if (user) {
-      // Check user role and redirect
+      // Check if user is admin first
       supabase
-        .from('user_roles')
-        .select('role')
+        .from('admins')
+        .select('user_id')
         .eq('user_id', user.id)
         .single()
-        .then(({ data }) => {
-          if (data?.role === 'owner') {
-            navigate('/dashboard/owner');
-          } else if (data?.role === 'influencer') {
-            navigate('/dashboard/influencer');
+        .then(({ data: adminData, error: adminError }) => {
+          if (adminData && !adminError) {
+            // User is admin, redirect to admin dashboard
+            navigate('/admin');
+            return;
           }
+
+          // Not an admin, check user role and redirect
+          supabase
+            .from('user_roles')
+            .select('role')
+            .eq('user_id', user.id)
+            .single()
+            .then(({ data }) => {
+              if (data?.role === 'owner') {
+                navigate('/dashboard/owner');
+              } else if (data?.role === 'influencer') {
+                navigate('/dashboard/influencer');
+              }
+            });
         });
     }
   }, [user, navigate]);
@@ -50,14 +64,27 @@ const Login = () => {
       if (error) throw error;
 
       if (data.user) {
-        // Get user role
+        // Check if user is admin first
+        const { data: adminData, error: adminError } = await supabase
+          .from('admins')
+          .select('user_id')
+          .eq('user_id', data.user.id)
+          .single();
+
+        toast.success(t('common.success'));
+
+        if (adminData && !adminError) {
+          // User is admin, redirect to admin dashboard
+          navigate('/admin');
+          return;
+        }
+
+        // Not an admin, get user role
         const { data: roleData } = await supabase
           .from('user_roles')
           .select('role')
           .eq('user_id', data.user.id)
           .single();
-
-        toast.success(t('common.success'));
         
         if (roleData?.role === 'owner') {
           navigate('/dashboard/owner');

@@ -13,7 +13,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
-import { ChevronRight, ChevronLeft, Check, Plus, Trash2 } from 'lucide-react';
+import { ChevronRight, ChevronLeft, Check, Plus, Trash2, LogOut } from 'lucide-react';
 
 const SAUDI_CITIES = [
   'الرياض', 'جدة', 'مكة المكرمة', 'المدينة المنورة', 'الدمام', 'الخبر', 
@@ -90,7 +90,7 @@ type Step3Data = z.infer<typeof step3Schema>;
 const OwnerOnboarding = () => {
   const { t } = useTranslation();
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user, signOut } = useAuth();
   const [currentStep, setCurrentStep] = useState(1);
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState<Partial<Step1Data & Step2Data & Step3Data>>({});
@@ -233,10 +233,26 @@ const OwnerOnboarding = () => {
     form2.setValue('branches', newBranches);
   };
 
+  const handleLogout = async () => {
+    await signOut();
+    navigate('/auth/login');
+  };
+
   return (
     <div className="min-h-screen flex items-center justify-center p-3 sm:p-4 bg-muted/30">
-      <Card className="w-full max-w-2xl p-5 sm:p-8 shadow-elevated">
-        <div className="mb-6 sm:mb-8">
+      <Card className="w-full max-w-2xl p-5 sm:p-8 shadow-elevated relative">
+        {/* Logout Button */}
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={handleLogout}
+          className="absolute top-4 right-4 gap-2 text-muted-foreground hover:text-destructive"
+        >
+          <LogOut className="h-4 w-4" />
+          <span className="hidden sm:inline">تسجيل خروج</span>
+        </Button>
+
+        <div className="mb-6 sm:mb-8 mt-8">
           <h1 className="text-2xl sm:text-3xl font-bold mb-2">إعداد ملف المنشأة</h1>
           <div className="flex gap-2 mt-4">
             {[1, 2, 3].map((step) => (

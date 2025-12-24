@@ -15,7 +15,7 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
-import { ChevronRight, ChevronLeft, Check, LogOut } from 'lucide-react';
+import { ChevronRight, ChevronLeft, Check, LogOut, Upload, FileText } from 'lucide-react';
 
 const SAUDI_CITIES = [
   'الرياض', 'جدة', 'مكة المكرمة', 'المدينة المنورة', 'الدمام', 'الخبر', 
@@ -24,6 +24,15 @@ const SAUDI_CITIES = [
 ];
 
 const PLATFORMS = ['Instagram', 'TikTok', 'Snapchat', 'YouTube'];
+
+const CATEGORIES = [
+  { value: 'food_reviews', label: 'مراجعات طعام' },
+  { value: 'lifestyle', label: 'نمط حياة' },
+  { value: 'travel', label: 'سفر' },
+  { value: 'fashion', label: 'موضة' },
+  { value: 'comedy', label: 'كوميديا' },
+  { value: 'general', label: 'عام' },
+];
 
 const step1Schema = z.object({
   display_name: z.string().min(2, 'الاسم مطلوب'),
@@ -36,7 +45,7 @@ const step2Schema = z.object({
   instagram_handle: z.string().optional(),
   tiktok_username: z.string().optional(),
   snapchat_username: z.string().optional(),
-  category: z.enum(['food_reviews', 'lifestyle', 'fashion', 'travel', 'comedy', 'general']),
+  categories: z.array(z.string()).min(1, 'اختر تصنيف واحد على الأقل'),
   content_type: z.string().optional(),
 }).refine((data) => {
   // Ensure at least one account detail is provided
@@ -57,6 +66,16 @@ const step3Schema = z.object({
   collaboration_type: z.enum(['hospitality', 'paid']),
   min_price: z.number().min(0).optional(),
   max_price: z.number().min(0).optional(),
+  verification_document_url: z.string().optional(),
+}).refine((data) => {
+  // If paid, verification document is required
+  if (data.collaboration_type === 'paid') {
+    return data.verification_document_url && data.verification_document_url.length > 0;
+  }
+  return true;
+}, {
+  message: 'يجب رفع وثيقة (موثوق)',
+  path: ['verification_document_url'],
 });
 
 type Step1Data = z.infer<typeof step1Schema>;
@@ -72,6 +91,8 @@ const InfluencerOnboarding = () => {
   const [formData, setFormData] = useState<Partial<Step1Data & Step2Data & Step3Data>>({});
   const [selectedCities, setSelectedCities] = useState<string[]>([]);
   const [selectedPlatforms, setSelectedPlatforms] = useState<string[]>([]);
+  const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
+  const [uploadingDocument, setUploadingDocument] = useState(false);
 
   const form1 = useForm<Step1Data>({
     resolver: zodResolver(step1Schema),
@@ -80,7 +101,7 @@ const InfluencerOnboarding = () => {
 
   const form2 = useForm<Step2Data>({
     resolver: zodResolver(step2Schema),
-    defaultValues: { ...formData, primary_platforms: selectedPlatforms },
+    defaultValues: { ...formData, primary_platforms: selectedPlatforms, categories: selectedCategories },
   });
 
   const form3 = useForm<Step3Data>({
@@ -114,7 +135,8 @@ const InfluencerOnboarding = () => {
         primary_platforms: finalData.primary_platforms,
         tiktok_username: finalData.tiktok_username || null,
         snapchat_username: finalData.snapchat_username || null,
-        category: finalData.category,
+        category: finalData.categories?.[0] as any, // Keep first category for backward compatibility
+        categories: finalData.categories, // New array field
         content_type: finalData.content_type,
         avg_views_instagram: finalData.avg_views_instagram,
         avg_views_tiktok: finalData.avg_views_tiktok,
@@ -123,6 +145,7 @@ const InfluencerOnboarding = () => {
         accept_paid: finalData.collaboration_type === 'paid',
         min_price: finalData.min_price,
         max_price: finalData.max_price,
+        verification_document_url: finalData.verification_document_url || null,
         is_approved: false,
       }]);
 
@@ -159,6 +182,60 @@ const InfluencerOnboarding = () => {
       ? selectedPlatforms.filter(p => p !== platform)
       : [...selectedPlatforms, platform]
     );
+  };
+
+  const toggleCategory = (category: string) => {
+    setSelectedCategories(prev => 
+      prev.includes(category) 
+        ? prev.filter(c => c !== category)
+        : [...prev, category]
+    );
+    form2.setValue('categories', selectedCategories.includes(category) 
+      ? selectedCategories.filter(c => c !== category)
+      : [...selectedCategories, category]
+    );
+  };
+
+  const handleDocumentUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file || !user) return;
+
+    // Validate file type (PDF, images)
+    const allowedTypes = ['application/pdf', 'image/jpeg', 'image/jpg', 'image/png'];
+    if (!allowedTypes.includes(file.type)) {
+      toast.error('نوع الملف غير مدعوم. يرجى رفع PDF أو صورة');
+      return;
+    }
+
+    // Validate file size (max 5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error('حجم الملف كبير جداً. الحد الأقصى 5 ميجابايت');
+      return;
+    }
+
+    setUploadingDocument(true);
+    try {
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${user.id}-verification-${Date.now()}.${fileExt}`;
+      const filePath = `verification-documents/${fileName}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from('influencer-documents')
+        .upload(filePath, file);
+
+      if (uploadError) throw uploadError;
+
+      const { data: urlData } = supabase.storage
+        .from('influencer-documents')
+        .getPublicUrl(filePath);
+
+      form3.setValue('verification_document_url', urlData.publicUrl);
+      toast.success('تم رفع الوثيقة بنجاح');
+    } catch (error: any) {
+      toast.error(error.message || 'فشل رفع الوثيقة');
+    } finally {
+      setUploadingDocument(false);
+    }
   };
 
   const handleLogout = async () => {
@@ -308,22 +385,25 @@ const InfluencerOnboarding = () => {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="category">التصنيف *</Label>
-              <Select onValueChange={(value) => form2.setValue('category', value as any)}>
-                <SelectTrigger>
-                  <SelectValue placeholder="اختر التصنيف" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="food_reviews">مراجعات طعام</SelectItem>
-                  <SelectItem value="lifestyle">نمط حياة</SelectItem>
-                  <SelectItem value="travel">سفر</SelectItem>
-                  <SelectItem value="fashion">موضة</SelectItem>
-                  <SelectItem value="comedy">كوميديا</SelectItem>
-                  <SelectItem value="general">عام</SelectItem>
-                </SelectContent>
-              </Select>
-              {form2.formState.errors.category && (
-                <p className="text-sm text-destructive">{form2.formState.errors.category.message}</p>
+              <Label>التصنيفات (يمكنك اختيار أكثر من تصنيف) *</Label>
+              <div className="grid grid-cols-2 gap-2">
+                {CATEGORIES.map((cat) => (
+                  <button
+                    key={cat.value}
+                    type="button"
+                    onClick={() => toggleCategory(cat.value)}
+                    className={`p-3 text-sm rounded-md transition-colors ${
+                      selectedCategories.includes(cat.value)
+                        ? 'bg-primary text-primary-foreground'
+                        : 'bg-muted hover:bg-muted/70'
+                    }`}
+                  >
+                    {cat.label}
+                  </button>
+                ))}
+              </div>
+              {form2.formState.errors.categories && (
+                <p className="text-sm text-destructive">{form2.formState.errors.categories.message}</p>
               )}
             </div>
 
@@ -433,26 +513,66 @@ const InfluencerOnboarding = () => {
             </div>
 
             {form3.watch('collaboration_type') === 'paid' && (
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="min_price">الحد الأدنى للسعر (ريال)</Label>
-                  <Input
-                    id="min_price"
-                    type="number"
-                    {...form3.register('min_price', { valueAsNumber: true })}
-                    placeholder="500"
-                  />
+              <>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="min_price">الحد الأدنى للسعر (ريال)</Label>
+                    <Input
+                      id="min_price"
+                      type="number"
+                      {...form3.register('min_price', { valueAsNumber: true })}
+                      placeholder="500"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="max_price">الحد الأقصى للسعر (ريال)</Label>
+                    <Input
+                      id="max_price"
+                      type="number"
+                      {...form3.register('max_price', { valueAsNumber: true })}
+                      placeholder="5000"
+                    />
+                  </div>
                 </div>
-                <div className="space-y-2">
-                  <Label htmlFor="max_price">الحد الأقصى للسعر (ريال)</Label>
-                  <Input
-                    id="max_price"
-                    type="number"
-                    {...form3.register('max_price', { valueAsNumber: true })}
-                    placeholder="5000"
-                  />
+
+                <div className="space-y-3 p-4 border-2 border-primary/20 rounded-lg bg-primary/5">
+                  <Label className="text-base font-semibold flex items-center gap-2">
+                    <FileText className="h-5 w-5" />
+                    رفع وثيقة (موثوق) *
+                  </Label>
+                  <p className="text-sm text-muted-foreground">
+                    يجب على المؤثرين المدفوعين رفع وثيقة "موثوق"
+                  </p>
+                  
+                  <div className="flex flex-col gap-2">
+                    <Input
+                      type="file"
+                      accept=".pdf,.jpg,.jpeg,.png"
+                      onChange={handleDocumentUpload}
+                      disabled={uploadingDocument}
+                      className="cursor-pointer"
+                    />
+                    {uploadingDocument && (
+                      <p className="text-sm text-muted-foreground flex items-center gap-2">
+                        <Upload className="h-4 w-4 animate-pulse" />
+                        جاري رفع الملف...
+                      </p>
+                    )}
+                    {form3.watch('verification_document_url') && (
+                      <p className="text-sm text-green-600 flex items-center gap-2">
+                        <Check className="h-4 w-4" />
+                        تم رفع الوثيقة بنجاح
+                      </p>
+                    )}
+                  </div>
+                  
+                  {form3.formState.errors.verification_document_url && (
+                    <p className="text-sm text-destructive font-semibold">
+                      {form3.formState.errors.verification_document_url.message}
+                    </p>
+                  )}
                 </div>
-              </div>
+              </>
             )}
 
             <div className="flex gap-2">

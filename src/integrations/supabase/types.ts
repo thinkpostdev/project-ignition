@@ -14,6 +14,21 @@ export type Database = {
   }
   public: {
     Tables: {
+      admins: {
+        Row: {
+          created_at: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       branches: {
         Row: {
           address: string | null
@@ -110,6 +125,13 @@ export type Database = {
             referencedRelation: "campaigns"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "campaign_influencer_suggestions_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "developer_tracking_view"
+            referencedColumns: ["campaign_id"]
+          },
         ]
       }
       campaign_schedule_items: {
@@ -168,6 +190,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "campaigns"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "campaign_schedule_items_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "developer_tracking_view"
+            referencedColumns: ["campaign_id"]
           },
         ]
       }
@@ -290,6 +319,13 @@ export type Database = {
             referencedRelation: "campaigns"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "conversations_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "developer_tracking_view"
+            referencedColumns: ["campaign_id"]
+          },
         ]
       }
       influencer_invitations: {
@@ -299,6 +335,7 @@ export type Database = {
           id: string
           influencer_id: string
           offered_price: number | null
+          payment_completed: boolean | null
           proof_approved_at: string | null
           proof_deadline_at: string | null
           proof_rejected_reason: string | null
@@ -315,6 +352,7 @@ export type Database = {
           id?: string
           influencer_id: string
           offered_price?: number | null
+          payment_completed?: boolean | null
           proof_approved_at?: string | null
           proof_deadline_at?: string | null
           proof_rejected_reason?: string | null
@@ -331,6 +369,7 @@ export type Database = {
           id?: string
           influencer_id?: string
           offered_price?: number | null
+          payment_completed?: boolean | null
           proof_approved_at?: string | null
           proof_deadline_at?: string | null
           proof_rejected_reason?: string | null
@@ -349,6 +388,13 @@ export type Database = {
             referencedRelation: "campaigns"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "influencer_invitations_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "developer_tracking_view"
+            referencedColumns: ["campaign_id"]
+          },
         ]
       }
       influencer_profiles: {
@@ -361,6 +407,7 @@ export type Database = {
           avg_views_tiktok: Database["public"]["Enums"]["avg_range"] | null
           avg_views_val: number | null
           bio: string | null
+          categories: string[] | null
           category: Database["public"]["Enums"]["influencer_category"] | null
           cities: string[] | null
           city_served: string | null
@@ -388,6 +435,7 @@ export type Database = {
           type_label: string | null
           updated_at: string
           user_id: string
+          verification_document_url: string | null
         }
         Insert: {
           accept_hospitality?: boolean | null
@@ -398,6 +446,7 @@ export type Database = {
           avg_views_tiktok?: Database["public"]["Enums"]["avg_range"] | null
           avg_views_val?: number | null
           bio?: string | null
+          categories?: string[] | null
           category?: Database["public"]["Enums"]["influencer_category"] | null
           cities?: string[] | null
           city_served?: string | null
@@ -425,6 +474,7 @@ export type Database = {
           type_label?: string | null
           updated_at?: string
           user_id: string
+          verification_document_url?: string | null
         }
         Update: {
           accept_hospitality?: boolean | null
@@ -435,6 +485,7 @@ export type Database = {
           avg_views_tiktok?: Database["public"]["Enums"]["avg_range"] | null
           avg_views_val?: number | null
           bio?: string | null
+          categories?: string[] | null
           category?: Database["public"]["Enums"]["influencer_category"] | null
           cities?: string[] | null
           city_served?: string | null
@@ -448,7 +499,7 @@ export type Database = {
           history_price_cat?: string | null
           history_type?: string | null
           id?: string
-          instagram_handle?: string
+          instagram_handle?: string | null
           is_approved?: boolean | null
           location?: string | null
           max_price?: number | null
@@ -462,6 +513,7 @@ export type Database = {
           type_label?: string | null
           updated_at?: string
           user_id?: string
+          verification_document_url?: string | null
         }
         Relationships: []
       }
@@ -541,6 +593,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "campaigns"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "offers_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "developer_tracking_view"
+            referencedColumns: ["campaign_id"]
           },
         ]
       }
@@ -654,7 +713,74 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      admin_influencer_view: {
+        Row: {
+          accept_hospitality: boolean | null
+          accept_paid: boolean | null
+          avg_likes_range: Database["public"]["Enums"]["avg_range"] | null
+          avg_views_instagram: Database["public"]["Enums"]["avg_range"] | null
+          avg_views_snapchat: Database["public"]["Enums"]["avg_range"] | null
+          avg_views_tiktok: Database["public"]["Enums"]["avg_range"] | null
+          avg_views_val: number | null
+          bio: string | null
+          category: Database["public"]["Enums"]["influencer_category"] | null
+          cities: string[] | null
+          city_served: string | null
+          content_style: string | null
+          content_type: string | null
+          created_at: string | null
+          display_name: string | null
+          engagement_rate: number | null
+          followers_count: number | null
+          full_name: string | null
+          history_category: string | null
+          history_price_cat: string | null
+          history_type: string | null
+          id: string | null
+          instagram_handle: string | null
+          is_approved: boolean | null
+          location: string | null
+          max_price: number | null
+          min_price: number | null
+          niche: string | null
+          notes_preferences: string | null
+          primary_platforms: string[] | null
+          snapchat_username: string | null
+          tiktok_url: string | null
+          tiktok_username: string | null
+          type_label: string | null
+          updated_at: string | null
+          user_email: string | null
+          user_id: string | null
+        }
+        Relationships: []
+      }
+      developer_tracking_view: {
+        Row: {
+          amount_to_pay: number | null
+          business_name: string | null
+          campaign_id: string | null
+          campaign_name: string | null
+          has_uploaded_link: boolean | null
+          influencer_id: string | null
+          influencer_name: string | null
+          influencer_phone: string | null
+          invitation_created_at: string | null
+          invitation_id: string | null
+          invitation_responded_at: string | null
+          invitation_status:
+            | Database["public"]["Enums"]["invitation_status"]
+            | null
+          link_approved_at: string | null
+          link_submitted_at: string | null
+          owner_approved_link: boolean | null
+          payment_completed: boolean | null
+          proof_status: Database["public"]["Enums"]["proof_status"] | null
+          uploaded_link: string | null
+          visit_date: string | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
       has_role: {
@@ -662,6 +788,11 @@ export type Database = {
           _role: Database["public"]["Enums"]["app_role"]
           _user_id: string
         }
+        Returns: boolean
+      }
+      is_admin: { Args: { user_id: string }; Returns: boolean }
+      user_has_invitation_to_campaign: {
+        Args: { campaign_uuid: string; user_uuid: string }
         Returns: boolean
       }
     }

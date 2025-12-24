@@ -1351,6 +1351,11 @@ const CampaignDetail = () => {
                           </Button>
                         </div>
                       </div>
+
+                      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2">
+                        <span className="text-muted-foreground font-medium">رقم السجل التجاري:</span>
+                        <span className="font-bold text-lg">7052473522</span>
+                      </div>
                       
                       <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2 border-t pt-3">
                         <span className="text-muted-foreground font-medium">المبلغ المطلوب:</span>

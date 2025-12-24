@@ -549,7 +549,8 @@ serve(async (req) => {
     console.log(`[HANDLER] Parameters: budget=${campaignBudget}, city="${branchCity}", hospitality_bonus=${addBonusHospitality}`);
     console.log(`[HANDLER] Scheduling: goal="${campaignGoal}", start_date="${campaignStartDate}"`);
 
-    // Fetch all influencer profiles
+    // Fetch only APPROVED influencer profiles
+    // Influencers must be approved by admin before they can be matched to campaigns
     const { data: influencers, error: influencersError } = await supabase
       .from("influencer_profiles")
       .select(`
@@ -569,7 +570,8 @@ serve(async (req) => {
         primary_platforms,
         history_type,
         history_price_cat
-      `);
+      `)
+      .eq("is_approved", true);
 
     if (influencersError) {
       console.error("[HANDLER] Influencers fetch error:", influencersError);

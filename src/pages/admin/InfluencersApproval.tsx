@@ -32,6 +32,7 @@ interface InfluencerProfile {
   is_approved: boolean | null;
   created_at: string;
   full_name: string | null;
+  phone: string | null;
   user_email: string | null;
   profiles?: {
     full_name: string | null;
@@ -69,23 +70,24 @@ export default function InfluencersApproval() {
 
       if (profilesError) throw profilesError;
 
-      // Fetch profiles to get full names
+      // Fetch profiles to get full names and phone numbers
       const userIds = profilesData?.map(p => p.user_id) || [];
       
       const { data: profilesInfo } = await supabase
         .from('profiles')
-        .select('id, full_name')
+        .select('id, full_name, phone')
         .in('id', userIds);
 
-      // Create a map of user_id -> full_name
+      // Create a map of user_id -> profile info
       const profileMap = new Map(
-        profilesInfo?.map(p => [p.id, p.full_name]) || []
+        profilesInfo?.map(p => [p.id, { full_name: p.full_name, phone: p.phone }]) || []
       );
 
       // Transform data to match expected interface
       const transformedData = profilesData?.map(profile => ({
         ...profile,
-        full_name: profileMap.get(profile.user_id) || null,
+        full_name: profileMap.get(profile.user_id)?.full_name || null,
+        phone: profileMap.get(profile.user_id)?.phone || null,
         user_email: null, // Email not accessible from client
       })) || [];
 
@@ -118,6 +120,7 @@ export default function InfluencersApproval() {
       filtered = filtered.filter(inf => 
         inf.display_name?.toLowerCase().includes(search) ||
         inf.full_name?.toLowerCase().includes(search) ||
+        inf.phone?.toLowerCase().includes(search) ||
         inf.user_email?.toLowerCase().includes(search) ||
         inf.instagram_handle?.toLowerCase().includes(search) ||
         inf.tiktok_username?.toLowerCase().includes(search)
@@ -188,7 +191,7 @@ export default function InfluencersApproval() {
           <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
             <Input
-              placeholder="Search by name, email, or handle..."
+              placeholder="Search by name, phone, email, or handle..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="pl-10"
@@ -212,6 +215,7 @@ export default function InfluencersApproval() {
             <TableHeader>
               <TableRow>
                 <TableHead>Name</TableHead>
+                <TableHead>Phone</TableHead>
                 <TableHead>Email</TableHead>
                 <TableHead>Social Handles</TableHead>
                 <TableHead>Registration Date</TableHead>
@@ -222,7 +226,7 @@ export default function InfluencersApproval() {
             <TableBody>
               {filteredInfluencers.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={6} className="text-center py-8 text-gray-500">
+                  <TableCell colSpan={7} className="text-center py-8 text-gray-500">
                     No influencers found
                   </TableCell>
                 </TableRow>
@@ -232,6 +236,7 @@ export default function InfluencersApproval() {
                     <TableCell className="font-medium">
                       {influencer.display_name || influencer.full_name || 'N/A'}
                     </TableCell>
+                    <TableCell>{influencer.phone || 'N/A'}</TableCell>
                     <TableCell>{influencer.user_email || 'N/A'}</TableCell>
                     <TableCell>
                       <div className="text-sm space-y-1">

@@ -40,6 +40,7 @@ interface Campaign {
   budget: number | null;
   goal: string | null;
   start_date: string | null;
+  duration_days: number | null;
   owner_id: string;
   add_bonus_hospitality: boolean | null;
 }
@@ -52,7 +53,8 @@ type CampaignGoal = 'opening' | 'promotions' | 'new_products' | 'other';
 /**
  * Determines the next scheduled date for a replacement influencer.
  * For 'opening' goal, use the campaign start date (all visit same day).
- * For other goals, find the next available date after the last scheduled influencer.
+ * For other goals, find the next available date within the campaign duration.
+ * If duration is set, spreads dates across the duration period.
  */
 function determineScheduledDate(
   campaign: Campaign,
@@ -63,30 +65,68 @@ function determineScheduledDate(
   }
 
   const goal = campaign.goal as CampaignGoal | null;
+  const durationDays = campaign.duration_days;
+  const startDate = new Date(campaign.start_date);
+  
+  // Validate start date
+  if (isNaN(startDate.getTime())) {
+    return null;
+  }
   
   // For opening campaigns, everyone gets the same date
   if (goal === 'opening') {
     return campaign.start_date;
   }
 
-  // For other campaigns, find the latest scheduled date and add 1 day
+  // Get all scheduled dates from existing invitations
   const scheduledDates = existingInvitations
     .map(inv => inv.scheduled_date)
     .filter((date): date is string => date !== null)
     .map(date => new Date(date))
-    .filter(date => !isNaN(date.getTime()));
+    .filter(date => !isNaN(date.getTime()))
+    .sort((a, b) => a.getTime() - b.getTime());
 
+  // If no scheduled dates yet, use campaign start date
   if (scheduledDates.length === 0) {
-    // No scheduled dates yet, use campaign start date
     return campaign.start_date;
   }
 
-  // Find the latest date and add 1 day
-  const latestDate = new Date(Math.max(...scheduledDates.map(d => d.getTime())));
-  const nextDate = new Date(latestDate);
-  nextDate.setDate(nextDate.getDate() + 1);
+  // Calculate the end date based on duration
+  const endDate = durationDays && durationDays > 0
+    ? new Date(startDate)
+    : null;
   
-  return nextDate.toISOString().split('T')[0];
+  if (endDate && durationDays) {
+    endDate.setDate(endDate.getDate() + (durationDays - 1));
+  }
+
+  // Find the next available date
+  // Strategy: Try to find a gap in the schedule, or place at the end
+  if (durationDays && durationDays > 0 && endDate) {
+    // Check if we're within the duration period
+    const latestScheduled = new Date(Math.max(...scheduledDates.map(d => d.getTime())));
+    
+    // If latest scheduled date is before end date, try to place after it
+    if (latestScheduled < endDate) {
+      const nextDate = new Date(latestScheduled);
+      nextDate.setDate(nextDate.getDate() + 1);
+      
+      // Ensure we don't exceed the end date
+      if (nextDate <= endDate) {
+        return nextDate.toISOString().split('T')[0];
+      }
+    }
+    
+    // If we're at or past the end date, place at the end date
+    return endDate.toISOString().split('T')[0];
+  } else {
+    // No duration specified: sequential dates (original behavior)
+    const latestDate = new Date(Math.max(...scheduledDates.map(d => d.getTime())));
+    const nextDate = new Date(latestDate);
+    nextDate.setDate(nextDate.getDate() + 1);
+    
+    return nextDate.toISOString().split('T')[0];
+  }
 }
 
 /**
@@ -268,7 +308,8 @@ async function findReplacementInfluencer(
       id, 
       budget, 
       goal, 
-      start_date, 
+      start_date,
+      duration_days,
       owner_id,
       add_bonus_hospitality,
       branches (

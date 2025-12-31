@@ -20,7 +20,6 @@ import {
   Calendar, 
   Sparkles, 
   Eye, 
-  RefreshCw,
   TrendingUp,
   Gift,
   CheckCircle2,
@@ -29,7 +28,8 @@ import {
   X,
   FileCheck,
   MessageCircle,
-  CreditCard
+  CreditCard,
+  Trash2
 } from 'lucide-react';
 import { formatViewsCount } from '@/domain/matching';
 import type { MatchingSummary } from '@/domain/matching';
@@ -103,8 +103,9 @@ const CampaignDetail = () => {
   const navigate = useNavigate();
   const [campaign, setCampaign] = useState<Campaign | null>(null);
   const [loading, setLoading] = useState(true);
-  const [rerunning, setRerunning] = useState(false);
   const [approvingAll, setApprovingAll] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [suggestions, setSuggestions] = useState<CampaignSuggestion[]>([]);
   // Track edited dates per suggestion (key: suggestion.id, value: date string)
   const [editedDates, setEditedDates] = useState<Record<string, string>>({});
@@ -429,29 +430,79 @@ const CampaignDetail = () => {
     return null;
   };
 
-  const handleRerunMatching = async () => {
-    if (!id) return;
+  const handleDeleteCampaign = async () => {
+    if (!id || !campaign) return;
     
-    setRerunning(true);
+    setDeleting(true);
     try {
-      toast.info('جاري إعادة تحليل المؤثرين...');
-      
-      const { error } = await supabase.functions.invoke('match-influencers', {
-        body: { campaign_id: id }
-      });
+      // Check if campaign can be deleted (payment not approved)
+      if (campaign.payment_approved === true) {
+        toast.error('لا يمكن حذف الحملة بعد الموافقة على الدفع');
+        setDeleteDialogOpen(false);
+        return;
+      }
+
+      // Check if there are any accepted invitations
+      const { data: acceptedInvitations } = await supabase
+        .from('influencer_invitations')
+        .select('id')
+        .eq('campaign_id', id)
+        .eq('status', 'accepted')
+        .limit(1);
+
+      if (acceptedInvitations && acceptedInvitations.length > 0) {
+        toast.error('لا يمكن حذف الحملة لأن هناك مؤثرين قبلوا الدعوة');
+        setDeleteDialogOpen(false);
+        return;
+      }
+
+      // Delete related records first (due to foreign key constraints)
+      // 1. Delete invitations
+      await supabase
+        .from('influencer_invitations')
+        .delete()
+        .eq('campaign_id', id);
+
+      // 2. Delete suggestions
+      await supabase
+        .from('campaign_influencer_suggestions')
+        .delete()
+        .eq('campaign_id', id);
+
+      // 3. Delete schedule items
+      await supabase
+        .from('campaign_schedule_items')
+        .delete()
+        .eq('campaign_id', id);
+
+      // 4. Delete conversations
+      await supabase
+        .from('conversations')
+        .delete()
+        .eq('campaign_id', id);
+
+      // 5. Delete offers
+      await supabase
+        .from('offers')
+        .delete()
+        .eq('campaign_id', id);
+
+      // 6. Finally, delete the campaign
+      const { error } = await supabase
+        .from('campaigns')
+        .delete()
+        .eq('id', id);
 
       if (error) throw error;
       
-      toast.success('تم إعادة التحليل بنجاح!');
-      
-      // Refresh data
-      await fetchCampaign();
-      await fetchSuggestions();
+      toast.success('تم حذف الحملة بنجاح');
+      navigate('/dashboard/owner');
     } catch (error: unknown) {
-      const errorMessage = error instanceof Error ? error.message : 'فشل إعادة التحليل';
+      const errorMessage = error instanceof Error ? error.message : 'فشل حذف الحملة';
       toast.error(errorMessage);
     } finally {
-      setRerunning(false);
+      setDeleting(false);
+      setDeleteDialogOpen(false);
     }
   };
 
@@ -720,14 +771,17 @@ const CampaignDetail = () => {
                 )}
               </div>
             </div>
-            <Button 
-              variant="outline" 
-              onClick={handleRerunMatching}
-              disabled={rerunning}
-            >
-              <RefreshCw className={`h-4 w-4 me-2 ${rerunning ? 'animate-spin' : ''}`} />
-              {rerunning ? 'جاري التحليل...' : 'إعادة التحليل'}
-            </Button>
+            {/* Show delete button only if payment is not approved */}
+            {campaign.payment_approved !== true && (
+              <Button 
+                variant="destructive" 
+                onClick={() => setDeleteDialogOpen(true)}
+                disabled={deleting}
+              >
+                <Trash2 className="h-4 w-4 me-2" />
+                {deleting ? 'جاري الحذف...' : 'حذف الحملة'}
+              </Button>
+            )}
           </div>
         </div>
 
@@ -1126,10 +1180,6 @@ const CampaignDetail = () => {
                   <p className="text-muted-foreground">
                     لم يتم العثور على مؤثرين مناسبين بعد.
                   </p>
-                  <Button variant="outline" onClick={handleRerunMatching} disabled={rerunning}>
-                    <RefreshCw className={`h-4 w-4 me-2 ${rerunning ? 'animate-spin' : ''}`} />
-                    إعادة التحليل
-                  </Button>
                 </div>
               )}
             </div>
@@ -1323,7 +1373,7 @@ const CampaignDetail = () => {
                   <div className="flex-1">
                     <h4 className="font-semibold text-lg mb-3 flex items-center gap-2">
                       <DollarSign className="h-5 w-5 text-primary" />
-                      حوّل المبلغ إلى الحساب البنكي
+                      حوّل المبلغ إلى الحساب البنكي التالي لإعتماد الحملة
                     </h4>
                     
                     <div className="space-y-3 bg-background rounded-lg p-4">
@@ -1414,12 +1464,7 @@ const CampaignDetail = () => {
                 </div>
               </div>
 
-              {/* Notice */}
-              <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg p-4">
-                <p className="text-sm text-amber-800 dark:text-amber-300 leading-relaxed">
-                  <strong>ملاحظة:</strong> المبلغ المطلوب ({actualPaymentAmount.toLocaleString()} ر.س) يشمل تكلفة المؤثرين ({influencersCost.toLocaleString()} ر.س) + رسوم الخدمة 20% ({(influencersCost * 0.20).toLocaleString()} ر.س). بعد الموافقة، سيتم إرسال الدعوات تلقائياً.
-                </p>
-              </div>
+              
             </div>
 
             {/* Action Buttons */}
@@ -1458,6 +1503,50 @@ const CampaignDetail = () => {
                     تم الدفع
                   </>
                 )}
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
+
+        {/* Delete Campaign Dialog */}
+        <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+          <DialogContent className="sm:max-w-[500px]">
+            <DialogHeader>
+              <DialogTitle>حذف الحملة</DialogTitle>
+              <DialogDescription>
+                هل أنت متأكد من حذف هذه الحملة؟ سيتم حذف جميع البيانات المرتبطة بها بما في ذلك الاقتراحات والدعوات.
+                <br />
+                <strong className="text-destructive">لا يمكن التراجع عن هذا الإجراء.</strong>
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4 py-4">
+              {campaign && (
+                <div className="bg-muted rounded-lg p-3">
+                  <p className="text-sm">
+                    <strong>عنوان الحملة:</strong> {campaign.title}
+                  </p>
+                  <p className="text-sm mt-1">
+                    <strong>الحالة:</strong> {getStatusLabel(campaign.status)}
+                  </p>
+                </div>
+              )}
+            </div>
+            <div className="flex gap-3">
+              <Button
+                variant="outline"
+                onClick={() => setDeleteDialogOpen(false)}
+                disabled={deleting}
+                className="flex-1"
+              >
+                إلغاء
+              </Button>
+              <Button
+                variant="destructive"
+                onClick={handleDeleteCampaign}
+                disabled={deleting}
+                className="flex-1"
+              >
+                {deleting ? 'جاري الحذف...' : 'حذف'}
               </Button>
             </div>
           </DialogContent>

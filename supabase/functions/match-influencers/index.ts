@@ -121,21 +121,25 @@ interface MatchingSummary {
 type CampaignGoal = 'opening' | 'promotions' | 'new_products' | 'other';
 
 /**
- * Assigns scheduled dates to influencers based on campaign goal.
+ * Assigns scheduled dates to influencers based on campaign goal and duration.
  * 
  * Rules:
  * - If goal is 'opening' (افتتاح فرع): All influencers get the same date (start_date)
- * - For all other goals: Sequential dates starting from start_date, one per day
+ * - For all other goals: Spread influencers evenly across the campaign duration
+ *   - If duration is provided, influencers are distributed across those days
+ *   - If no duration, fallback to sequential dates (one per day)
  * 
  * @param influencers - Ordered list of matched influencers
  * @param startDate - Campaign start date (ISO string or Date)
  * @param goal - Campaign goal type
+ * @param durationDays - Campaign duration in days (optional)
  * @returns Array of influencers with scheduled_date assigned
  */
 function assignInfluencerDates<T extends { id: string }>(
   influencers: T[],
   startDate: string | Date | null,
-  goal: CampaignGoal | string | null
+  goal: CampaignGoal | string | null,
+  durationDays: number | null | undefined
 ): (T & { scheduled_date: string | null })[] {
   // If no start date provided, return null dates
   if (!startDate) {
@@ -154,8 +158,13 @@ function assignInfluencerDates<T extends { id: string }>(
   const isOpening = goal === 'opening';
   
   console.log(`[SCHEDULING] Assigning dates for ${influencers.length} influencers`);
-  console.log(`[SCHEDULING] Goal: "${goal}", Mode: ${isOpening ? 'SAME_DATE' : 'SEQUENTIAL'}`);
+  console.log(`[SCHEDULING] Goal: "${goal}", Duration: ${durationDays} days, Mode: ${isOpening ? 'SAME_DATE' : 'SPREAD_ACROSS_DURATION'}`);
   console.log(`[SCHEDULING] Start date: ${baseDate.toISOString().split('T')[0]}`);
+
+  // If no influencers, return empty array
+  if (influencers.length === 0) {
+    return [];
+  }
 
   return influencers.map((influencer, index) => {
     let scheduledDate: Date;
@@ -164,9 +173,40 @@ function assignInfluencerDates<T extends { id: string }>(
       // Branch opening: everyone visits on the same day
       scheduledDate = new Date(baseDate);
     } else {
-      // Other goals: sequential dates, one influencer per day
-      scheduledDate = new Date(baseDate);
-      scheduledDate.setDate(scheduledDate.getDate() + index);
+      // Other goals: spread influencers across the duration
+      if (durationDays && durationDays > 0) {
+        // Calculate the end date (start_date + duration_days - 1)
+        // We subtract 1 because the start date is day 0
+        const endDate = new Date(baseDate);
+        endDate.setDate(endDate.getDate() + (durationDays - 1));
+        
+        // If we have only one influencer, place them on the start date
+        if (influencers.length === 1) {
+          scheduledDate = new Date(baseDate);
+        } else {
+          // Distribute influencers evenly across the duration
+          // Calculate the interval: (durationDays - 1) / (influencers.length - 1)
+          // This ensures the first influencer is on start_date and last is on end_date
+          const interval = (durationDays - 1) / (influencers.length - 1);
+          const daysToAdd = Math.round(index * interval);
+          
+          scheduledDate = new Date(baseDate);
+          scheduledDate.setDate(scheduledDate.getDate() + daysToAdd);
+          
+          // Ensure we don't exceed the end date
+          const maxDate = new Date(endDate);
+          if (scheduledDate > maxDate) {
+            scheduledDate = new Date(maxDate);
+          }
+        }
+        
+        console.log(`[SCHEDULING] Influencer ${index + 1}/${influencers.length}: Day ${Math.round(index * interval) + 1} of ${durationDays} days`);
+      } else {
+        // Fallback: sequential dates, one influencer per day (original behavior)
+        scheduledDate = new Date(baseDate);
+        scheduledDate.setDate(scheduledDate.getDate() + index);
+        console.log(`[SCHEDULING] No duration specified, using sequential dates`);
+      }
     }
     
     // Format as YYYY-MM-DD for database
@@ -519,6 +559,7 @@ serve(async (req) => {
         branch_id,
         goal,
         start_date,
+        duration_days,
         branches (
           id,
           city,
@@ -545,9 +586,10 @@ serve(async (req) => {
     const addBonusHospitality = campaign.add_bonus_hospitality ?? false;
     const campaignGoal = campaign.goal as CampaignGoal | null;
     const campaignStartDate = campaign.start_date;
+    const campaignDurationDays = campaign.duration_days;
 
     console.log(`[HANDLER] Parameters: budget=${campaignBudget}, city="${branchCity}", hospitality_bonus=${addBonusHospitality}`);
-    console.log(`[HANDLER] Scheduling: goal="${campaignGoal}", start_date="${campaignStartDate}"`);
+    console.log(`[HANDLER] Scheduling: goal="${campaignGoal}", start_date="${campaignStartDate}", duration_days=${campaignDurationDays}`);
 
     // Fetch only APPROVED influencer profiles
     // Influencers must be approved by admin before they can be matched to campaigns
@@ -676,11 +718,12 @@ serve(async (req) => {
 
     console.log("[HANDLER] Strategy summary:", JSON.stringify(strategySummary, null, 2));
 
-    // Assign scheduled dates to influencers based on campaign goal
+    // Assign scheduled dates to influencers based on campaign goal and duration
     const influencersWithDates = assignInfluencerDates(
       matchedInfluencers,
       campaignStartDate,
-      campaignGoal
+      campaignGoal,
+      campaignDurationDays
     );
 
     // Prepare suggestions for database

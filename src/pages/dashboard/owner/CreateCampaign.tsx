@@ -33,7 +33,7 @@ const campaignSchema = z.object({
     required_error: 'يجب اختيار تاريخ بدء الحملة',
     invalid_type_error: 'يجب اختيار تاريخ صحيح',
   }),
-  duration_days: z.number().min(1).max(90).optional(),
+  duration_days: z.number().min(1, 'المدة يجب أن تكون يوم واحد على الأقل').max(90, 'المدة يجب ألا تتجاوز 90 يوم'),
   add_bonus_hospitality: z.boolean(),
   target_followers_min: z.number().min(0).optional(),
   target_followers_max: z.number().min(0).optional(),
@@ -58,7 +58,7 @@ const CreateCampaign = () => {
       description: '',
       goal_details: '',
       content_requirements: '',
-      duration_days: 10,
+      duration_days: 10, // Default duration
       add_bonus_hospitality: false,
     },
   });
@@ -126,7 +126,7 @@ const CreateCampaign = () => {
           content_requirements: data.content_requirements || null,
           budget: data.budget,
           start_date: data.start_date ? format(data.start_date, 'yyyy-MM-dd') : null,
-          duration_days: data.duration_days || 10,
+          duration_days: data.duration_days,
           add_bonus_hospitality: data.add_bonus_hospitality,
           target_followers_min: data.target_followers_min || null,
           target_followers_max: data.target_followers_max || null,
@@ -220,6 +220,9 @@ const CreateCampaign = () => {
     if (step === 1) {
       // Include branch_id in validation - it's required for the matching algorithm
       fieldsToValidate = ['title', 'description', 'branch_id', 'goal', 'goal_details'];
+    } else if (step === 2) {
+      // Validate budget, start_date, and duration_days before submission
+      fieldsToValidate = ['budget', 'start_date', 'duration_days'];
     }
 
     const isValid = await form.trigger(fieldsToValidate);
@@ -462,6 +465,27 @@ const CreateCampaign = () => {
                   </Popover>
                   {form.formState.errors.start_date && (
                     <p className="text-sm text-destructive">{form.formState.errors.start_date.message}</p>
+                  )}
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="duration_days">مدة الحملة (بالأيام) *</Label>
+                  <Input
+                    id="duration_days"
+                    type="number"
+                    min="1"
+                    max="90"
+                    placeholder="10"
+                    {...form.register('duration_days', { 
+                      valueAsNumber: true,
+                      required: 'يجب تحديد مدة الحملة'
+                    })}
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    سيتم توزيع المؤثرين على هذه الأيام بشكل متساوي
+                  </p>
+                  {form.formState.errors.duration_days && (
+                    <p className="text-sm text-destructive">{form.formState.errors.duration_days.message}</p>
                   )}
                 </div>
 

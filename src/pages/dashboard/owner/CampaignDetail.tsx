@@ -29,7 +29,8 @@ import {
   FileCheck,
   MessageCircle,
   CreditCard,
-  Trash2
+  Trash2,
+  RefreshCw
 } from 'lucide-react';
 import { formatViewsCount } from '@/domain/matching';
 import type { MatchingSummary } from '@/domain/matching';
@@ -888,7 +889,7 @@ const CampaignDetail = () => {
               </div>
               <div>
                 <p className="text-sm text-muted-foreground">المدة</p>
-                <p className="text-xl font-bold">{actualDuration} أيام</p>
+                <p className="text-xl font-bold">{campaign?.duration_days || 10} أيام</p>
               </div>
             </div>
           </Card>

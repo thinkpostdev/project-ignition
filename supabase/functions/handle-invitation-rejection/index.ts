@@ -141,11 +141,12 @@ async function findNewInfluencers(
   excludedInfluencerIds: Set<string>,
   allowHospitality: boolean
 ): Promise<CampaignSuggestion[]> {
-  console.log(`[REPLACEMENT] Searching all influencers in database`);
+  console.log(`[REPLACEMENT] Searching all APPROVED influencers in database`);
   console.log(`[REPLACEMENT] City: ${branchCity}, Budget: ${remainingBudget}, Allow Hospitality: ${allowHospitality}`);
   
   try {
-    // Query ALL influencers from the system
+    // Query ALL APPROVED influencers from the system
+    // IMPORTANT: Only approved influencers should be matched to campaigns
     const { data: allInfluencers, error } = await supabase
       .from("influencer_profiles")
       .select(`
@@ -162,14 +163,15 @@ async function findNewInfluencers(
         primary_platforms,
         accept_hospitality,
         accept_paid
-      `);
+      `)
+      .eq("is_approved", true);
 
     if (error || !allInfluencers) {
       console.error("[REPLACEMENT] Error fetching influencers:", error);
       return [];
     }
 
-    console.log(`[REPLACEMENT] Found ${allInfluencers.length} total influencers in database`);
+    console.log(`[REPLACEMENT] Found ${allInfluencers.length} approved influencers in database`);
 
     // Filter influencers that match criteria
     const matchedInfluencers = allInfluencers.filter((inf: any) => {

@@ -58,7 +58,7 @@ const step1Schema = z.object({
 const branchSchema = z.object({
   city: z.string().min(1, 'المدينة مطلوبة'),
   neighborhood: z.string().min(1, 'اسم الحي مطلوب'),
-  google_map_url: z.string().min(1, 'رابط خرائط جوجل مطلوب').url('رابط خرائط جوجل غير صحيح'),
+  google_map_url: z.string().min(1, 'رابط خرائط جوجل مطلوب').url('يجب إدخال رابط صحيح من خرائط جوجل'),
 });
 
 const step2Schema = z.object({
@@ -424,9 +424,10 @@ const OwnerOnboarding = () => {
                         onChange={(e) => updateBranch(index, 'google_map_url', e.target.value)}
                         placeholder="https://maps.google.com/..."
                         dir="ltr"
+                        required
                       />
                       <p className="text-xs text-muted-foreground">
-                        يرجى نسخ رابط موقع الفرع من خرائط جوجل
+                        يجب إدخال رابط صحيح من خرائط جوجل (مثال: https://maps.google.com/...)
                       </p>
                     </div>
                   </Card>

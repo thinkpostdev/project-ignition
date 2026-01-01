@@ -73,7 +73,7 @@ const branchSchema = z.object({
   id: z.string().optional(),
   city: z.string().min(1, 'المدينة مطلوبة'),
   neighborhood: z.string().min(1, 'اسم الحي مطلوب'),
-  google_map_url: z.string().url('رابط خرائط جوجل غير صحيح').optional().or(z.literal('')),
+  google_map_url: z.string().min(1, 'رابط خرائط جوجل مطلوب').url('يجب إدخال رابط صحيح من خرائط جوجل'),
 });
 
 type ProfileData = z.infer<typeof profileSchema>;
@@ -158,10 +158,38 @@ const OwnerProfile = () => {
     if (!ownerProfileId) return;
 
     // Validate branches
-    const validBranches = branches.filter(b => b.city && b.neighborhood);
+    const validBranches = branches.filter(b => b.city && b.neighborhood && b.google_map_url);
+    
     if (validBranches.length === 0) {
       toast.error('يجب إضافة فرع واحد على الأقل');
       return;
+    }
+    
+    // Validate each branch has a valid URL
+    for (let i = 0; i < branches.length; i++) {
+      const branch = branches[i];
+      if (branch.city || branch.neighborhood || branch.google_map_url) {
+        // If any field is filled, all fields must be filled
+        if (!branch.city) {
+          toast.error(`الفرع ${i + 1}: المدينة مطلوبة`);
+          return;
+        }
+        if (!branch.neighborhood) {
+          toast.error(`الفرع ${i + 1}: اسم الحي مطلوب`);
+          return;
+        }
+        if (!branch.google_map_url) {
+          toast.error(`الفرع ${i + 1}: رابط خرائط جوجل مطلوب`);
+          return;
+        }
+        // Validate URL format
+        try {
+          new URL(branch.google_map_url);
+        } catch {
+          toast.error(`الفرع ${i + 1}: يجب إدخال رابط صحيح من خرائط جوجل`);
+          return;
+        }
+      }
     }
 
     setSaving(true);
@@ -430,14 +458,18 @@ const OwnerProfile = () => {
                         </div>
 
                         <div className="space-y-2">
-                          <Label htmlFor={`branch-map-${index}`}>رابط خرائط جوجل</Label>
+                          <Label htmlFor={`branch-map-${index}`}>رابط خرائط جوجل *</Label>
                           <Input
                             id={`branch-map-${index}`}
                             value={branch.google_map_url}
                             onChange={(e) => updateBranch(index, 'google_map_url', e.target.value)}
                             placeholder="https://maps.google.com/..."
                             dir="ltr"
+                            required
                           />
+                          <p className="text-xs text-muted-foreground">
+                            يجب إدخال رابط صحيح من خرائط جوجل (مثال: https://maps.google.com/...)
+                          </p>
                         </div>
                       </Card>
                     ))}

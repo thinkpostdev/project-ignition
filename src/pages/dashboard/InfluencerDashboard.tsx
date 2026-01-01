@@ -7,7 +7,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { LanguageSwitcher } from '@/components/LanguageSwitcher';
-import { Wallet, Briefcase, Mail, CheckCircle2, X, Clock, Calendar, Upload, Link as LinkIcon, AlertCircle, Settings, Info, DollarSign, FileText, Phone } from 'lucide-react';
+import { Wallet, Briefcase, Mail, CheckCircle2, X, Clock, Calendar, Upload, Link as LinkIcon, AlertCircle, Settings, Info, DollarSign, FileText, Phone, MapPin, ExternalLink } from 'lucide-react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
@@ -45,6 +45,7 @@ interface Invitation {
     branches: {
       city: string | null;
       neighborhood: string | null;
+      google_map_url: string | null;
     } | null;
   } | null;
 }
@@ -169,21 +170,22 @@ const InfluencerDashboard = () => {
 
       // Fetch branch details for each unique branch_id
       const branchIds = [...new Set((data || []).map(inv => inv.campaigns?.branch_id).filter(Boolean))] as string[];
-      let branchMap: Record<string, { city: string | null; neighborhood: string | null }> = {};
+      let branchMap: Record<string, { city: string | null; neighborhood: string | null; google_map_url: string | null }> = {};
       
       if (branchIds.length > 0) {
         const { data: branches } = await supabase
           .from('branches')
-          .select('id, city, neighborhood')
+          .select('id, city, neighborhood, google_map_url')
           .in('id', branchIds);
         
         branchMap = (branches || []).reduce((acc, b) => {
           acc[b.id] = {
             city: b.city,
-            neighborhood: b.neighborhood
+            neighborhood: b.neighborhood,
+            google_map_url: b.google_map_url
           };
           return acc;
-        }, {} as Record<string, { city: string | null; neighborhood: string | null }>);
+        }, {} as Record<string, { city: string | null; neighborhood: string | null; google_map_url: string | null }>);
       }
 
       // Merge owner and branch data into invitations
@@ -930,6 +932,27 @@ const InfluencerDashboard = () => {
                             day: 'numeric'
                           })}
                         </p>
+                      </div>
+                    </div>
+                  </Card>
+                )}
+
+                {/* Branch Location */}
+                {selectedInvitation.campaigns.branches?.google_map_url && (
+                  <Card className="p-4 bg-gradient-to-br from-green-50 to-green-100/50 dark:from-green-900/20 dark:to-green-900/10 border-green-200 dark:border-green-800">
+                    <div className="flex items-center gap-3">
+                      <MapPin className="h-5 w-5 text-green-600" />
+                      <div className="flex-1">
+                        <p className="text-sm text-muted-foreground">موقع الفرع</p>
+                        <a 
+                          href={selectedInvitation.campaigns.branches.google_map_url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="font-semibold text-green-700 dark:text-green-300 hover:underline flex items-center gap-2"
+                        >
+                          عرض الموقع على خرائط جوجل
+                          <ExternalLink className="h-4 w-4" />
+                        </a>
                       </div>
                     </div>
                   </Card>

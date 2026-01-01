@@ -52,8 +52,7 @@ type CampaignGoal = 'opening' | 'promotions' | 'new_products' | 'other';
 
 /**
  * Determines the next scheduled date for a replacement influencer.
- * For 'opening' goal, use the campaign start date (all visit same day).
- * For other goals, find the next available date within the campaign duration.
+ * Find the next available date within the campaign duration.
  * If duration is set, spreads dates across the duration period.
  */
 function determineScheduledDate(
@@ -64,18 +63,12 @@ function determineScheduledDate(
     return null;
   }
 
-  const goal = campaign.goal as CampaignGoal | null;
   const durationDays = campaign.duration_days;
   const startDate = new Date(campaign.start_date);
   
   // Validate start date
   if (isNaN(startDate.getTime())) {
     return null;
-  }
-  
-  // For opening campaigns, everyone gets the same date
-  if (goal === 'opening') {
-    return campaign.start_date;
   }
 
   // Get all scheduled dates from existing invitations

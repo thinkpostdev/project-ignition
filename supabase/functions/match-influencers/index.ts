@@ -121,17 +121,16 @@ interface MatchingSummary {
 type CampaignGoal = 'opening' | 'promotions' | 'new_products' | 'other';
 
 /**
- * Assigns scheduled dates to influencers based on campaign goal and duration.
+ * Assigns scheduled dates to influencers based on campaign duration.
  * 
  * Rules:
- * - If goal is 'opening' (افتتاح فرع): All influencers get the same date (start_date)
- * - For all other goals: Spread influencers evenly across the campaign duration
+ * - All campaigns: Spread influencers evenly across the campaign duration
  *   - If duration is provided, influencers are distributed across those days
  *   - If no duration, fallback to sequential dates (one per day)
  * 
  * @param influencers - Ordered list of matched influencers
  * @param startDate - Campaign start date (ISO string or Date)
- * @param goal - Campaign goal type
+ * @param goal - Campaign goal type (kept for compatibility, not used for date logic)
  * @param durationDays - Campaign duration in days (optional)
  * @returns Array of influencers with scheduled_date assigned
  */
@@ -155,11 +154,13 @@ function assignInfluencerDates<T extends { id: string }>(
     return influencers.map(inf => ({ ...inf, scheduled_date: null }));
   }
 
-  const isOpening = goal === 'opening';
-  
+  console.log(`[SCHEDULING] ========== DATE ASSIGNMENT DEBUG ==========`);
   console.log(`[SCHEDULING] Assigning dates for ${influencers.length} influencers`);
-  console.log(`[SCHEDULING] Goal: "${goal}", Duration: ${durationDays} days, Mode: ${isOpening ? 'SAME_DATE' : 'SPREAD_ACROSS_DURATION'}`);
+  console.log(`[SCHEDULING] Goal: "${goal}" (type: ${typeof goal})`);
+  console.log(`[SCHEDULING] Duration: ${durationDays} days (type: ${typeof durationDays})`);
+  console.log(`[SCHEDULING] Mode: SPREAD_ACROSS_DURATION (all campaigns now spread influencers)`);
   console.log(`[SCHEDULING] Start date: ${baseDate.toISOString().split('T')[0]}`);
+  console.log(`[SCHEDULING] ============================================`);
 
   // If no influencers, return empty array
   if (influencers.length === 0) {
@@ -169,12 +170,8 @@ function assignInfluencerDates<T extends { id: string }>(
   return influencers.map((influencer, index) => {
     let scheduledDate: Date;
     
-    if (isOpening) {
-      // Branch opening: everyone visits on the same day
-      scheduledDate = new Date(baseDate);
-    } else {
-      // Other goals: spread influencers across the duration
-      if (durationDays && durationDays > 0) {
+    // All campaigns: spread influencers across the duration
+    if (durationDays && durationDays > 0) {
         // Calculate the end date (start_date + duration_days - 1)
         // We subtract 1 because the start date is day 0
         const endDate = new Date(baseDate);
@@ -183,6 +180,7 @@ function assignInfluencerDates<T extends { id: string }>(
         // If we have only one influencer, place them on the start date
         if (influencers.length === 1) {
           scheduledDate = new Date(baseDate);
+          console.log(`[SCHEDULING] Influencer 1/1: Scheduled on start date (${baseDate.toISOString().split('T')[0]})`);
         } else {
           // Distribute influencers evenly across the duration
           // Calculate the interval: (durationDays - 1) / (influencers.length - 1)
@@ -198,15 +196,14 @@ function assignInfluencerDates<T extends { id: string }>(
           if (scheduledDate > maxDate) {
             scheduledDate = new Date(maxDate);
           }
+          
+          console.log(`[SCHEDULING] Influencer ${index + 1}/${influencers.length}: Day ${Math.round(index * interval) + 1} of ${durationDays} days`);
         }
-        
-        console.log(`[SCHEDULING] Influencer ${index + 1}/${influencers.length}: Day ${Math.round(index * interval) + 1} of ${durationDays} days`);
-      } else {
-        // Fallback: sequential dates, one influencer per day (original behavior)
-        scheduledDate = new Date(baseDate);
-        scheduledDate.setDate(scheduledDate.getDate() + index);
-        console.log(`[SCHEDULING] No duration specified, using sequential dates`);
-      }
+    } else {
+      // Fallback: sequential dates, one influencer per day (original behavior)
+      scheduledDate = new Date(baseDate);
+      scheduledDate.setDate(scheduledDate.getDate() + index);
+      console.log(`[SCHEDULING] No duration specified, using sequential dates`);
     }
     
     // Format as YYYY-MM-DD for database

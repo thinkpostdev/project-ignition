@@ -1,10 +1,85 @@
-import "jsr:@supabase/functions-js/edge-runtime.d.ts";
-import { createClient } from "jsr:@supabase/supabase-js@2";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.3";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
+
+// ==========================================
+// AUTHENTICATION HELPER
+// ==========================================
+
+async function authenticateAndValidateOwnership(
+  req: Request,
+  campaignId: string
+): Promise<{ success: true; userId: string } | { success: false; response: Response }> {
+  const authHeader = req.headers.get('Authorization');
+  
+  if (!authHeader) {
+    console.error("[AUTH] No authorization header provided");
+    return {
+      success: false,
+      response: new Response(
+        JSON.stringify({ error: 'Unauthorized: No authorization header' }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      )
+    };
+  }
+
+  // Create client with user's JWT to validate token and get user
+  const supabaseClient = createClient(
+    Deno.env.get('SUPABASE_URL') ?? '',
+    Deno.env.get('SUPABASE_ANON_KEY') ?? '',
+    { global: { headers: { Authorization: authHeader } } }
+  );
+
+  const { data: { user }, error: authError } = await supabaseClient.auth.getUser();
+  
+  if (authError || !user) {
+    console.error("[AUTH] Invalid or expired token:", authError);
+    return {
+      success: false,
+      response: new Response(
+        JSON.stringify({ error: 'Unauthorized: Invalid token' }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      )
+    };
+  }
+
+  console.log(`[AUTH] Authenticated user: ${user.id}`);
+
+  // Verify campaign ownership using user's session (RLS will enforce)
+  const { data: campaign, error: campaignError } = await supabaseClient
+    .from('campaigns')
+    .select('owner_id')
+    .eq('id', campaignId)
+    .single();
+
+  if (campaignError || !campaign) {
+    console.error("[AUTH] Campaign not found or access denied:", campaignError);
+    return {
+      success: false,
+      response: new Response(
+        JSON.stringify({ error: 'Forbidden: Campaign not found or access denied' }),
+        { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      )
+    };
+  }
+
+  if (campaign.owner_id !== user.id) {
+    console.error("[AUTH] User is not the campaign owner");
+    return {
+      success: false,
+      response: new Response(
+        JSON.stringify({ error: 'Forbidden: Not the campaign owner' }),
+        { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      )
+    };
+  }
+
+  console.log(`[AUTH] User ${user.id} authorized for campaign ${campaignId}`);
+  return { success: true, userId: user.id };
+}
 
 Deno.serve(async (req: Request) => {
   // Handle CORS preflight
@@ -13,11 +88,6 @@ Deno.serve(async (req: Request) => {
   }
 
   try {
-    const supabase = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
-    );
-
     const { campaign_id } = await req.json();
 
     if (!campaign_id) {
@@ -28,6 +98,20 @@ Deno.serve(async (req: Request) => {
     }
 
     console.log(`[send-approved-invitations] Processing campaign: ${campaign_id}`);
+
+    // SECURITY: Authenticate user and validate campaign ownership
+    const authResult = await authenticateAndValidateOwnership(req, campaign_id);
+    if (!authResult.success) {
+      return authResult.response;
+    }
+
+    console.log("[send-approved-invitations] User authenticated and authorized");
+
+    // Use service role for privileged database operations
+    const supabase = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+    );
 
     // 1. Verify campaign exists and payment is approved
     const { data: campaign, error: campaignError } = await supabase
@@ -140,4 +224,3 @@ Deno.serve(async (req: Request) => {
     );
   }
 });
-

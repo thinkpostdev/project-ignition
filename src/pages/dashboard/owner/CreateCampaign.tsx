@@ -117,7 +117,7 @@ const CreateCampaign = () => {
         .insert([{
           owner_id: user.id,
           title: data.title,
-          description: data.description || null,
+          description: null,
           branch_id: data.branch_id,
           goal: data.goal,
           goal_details: data.goal_details || null,

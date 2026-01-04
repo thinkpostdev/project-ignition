@@ -26,14 +26,17 @@ async function authenticateAndValidateOwnership(
     };
   }
 
-  // Create client with user's JWT to validate token and get user
-  const supabaseClient = createClient(
+  // Extract token from header
+  const token = authHeader.replace('Bearer ', '');
+  
+  // Use service role to verify JWT and get user info
+  const supabaseAdmin = createClient(
     Deno.env.get('SUPABASE_URL') ?? '',
-    Deno.env.get('SUPABASE_ANON_KEY') ?? '',
-    { global: { headers: { Authorization: authHeader } } }
+    Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
   );
 
-  const { data: { user }, error: authError } = await supabaseClient.auth.getUser();
+  // Verify the JWT token and get user
+  const { data: { user }, error: authError } = await supabaseAdmin.auth.getUser(token);
   
   if (authError || !user) {
     console.error("[AUTH] Invalid or expired token:", authError);
@@ -48,15 +51,15 @@ async function authenticateAndValidateOwnership(
 
   console.log(`[AUTH] Authenticated user: ${user.id}`);
 
-  // Verify campaign ownership using user's session (RLS will enforce)
-  const { data: campaign, error: campaignError } = await supabaseClient
+  // Verify campaign ownership
+  const { data: campaign, error: campaignError } = await supabaseAdmin
     .from('campaigns')
     .select('owner_id')
     .eq('id', campaignId)
     .single();
 
   if (campaignError || !campaign) {
-    console.error("[AUTH] Campaign not found or access denied:", campaignError);
+    console.error("[AUTH] Campaign not found:", campaignError);
     return {
       success: false,
       response: new Response(

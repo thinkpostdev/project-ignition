@@ -35,9 +35,6 @@ interface InfluencerProfile {
   full_name: string | null;
   phone: string | null;
   user_email: string | null;
-  profiles?: {
-    full_name: string | null;
-  } | null;
 }
 
 type FilterStatus = 'all' | 'pending' | 'approved';
@@ -85,11 +82,19 @@ export default function InfluencersApproval() {
       );
 
       // Transform data to match expected interface
-      const transformedData = profilesData?.map(profile => ({
-        ...profile,
+      const transformedData: InfluencerProfile[] = profilesData?.map(profile => ({
+        id: profile.id,
+        user_id: profile.user_id,
+        display_name: profile.display_name,
+        instagram_handle: profile.instagram_handle,
+        tiktok_username: profile.tiktok_username,
+        snapchat_username: profile.snapchat_username,
+        is_approved: profile.is_approved,
+        agreement_accepted: profile.agreement_accepted,
+        created_at: profile.created_at,
         full_name: profileMap.get(profile.user_id)?.full_name || null,
         phone: profileMap.get(profile.user_id)?.phone || null,
-        user_email: null, // Email not accessible from client
+        user_email: null,
       })) || [];
 
       setInfluencers(transformedData);

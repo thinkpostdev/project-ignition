@@ -31,6 +31,11 @@ import { useToast } from '@/hooks/use-toast';
 import { Edit, Loader2, Save, Search } from 'lucide-react';
 import { format } from 'date-fns';
 
+import { Database } from '@/integrations/supabase/types';
+
+type CampaignStatus = Database['public']['Enums']['campaign_detailed_status'];
+type CampaignGoal = Database['public']['Enums']['campaign_goal'];
+
 interface Campaign {
   id: string;
   owner_id: string;
@@ -41,10 +46,10 @@ interface Campaign {
   target_followers_max: number | null;
   target_engagement_min: number | null;
   content_requirements: string | null;
-  status: string;
+  status: CampaignStatus;
   created_at: string;
   updated_at: string;
-  goal: string | null;
+  goal: CampaignGoal | null;
   goal_details: string | null;
   start_date: string | null;
   duration_days: number | null;
@@ -389,7 +394,7 @@ export default function CampaignsManagement() {
               <Label htmlFor="status">Status</Label>
               <Select
                 value={editFormData.status}
-                onValueChange={(value) => setEditFormData({ ...editFormData, status: value })}
+                onValueChange={(value) => setEditFormData({ ...editFormData, status: value as CampaignStatus })}
               >
                 <SelectTrigger>
                   <SelectValue />
@@ -407,7 +412,7 @@ export default function CampaignsManagement() {
               <Label htmlFor="goal">Goal</Label>
               <Select
                 value={editFormData.goal || undefined}
-                onValueChange={(value) => setEditFormData({ ...editFormData, goal: value })}
+                onValueChange={(value) => setEditFormData({ ...editFormData, goal: value as CampaignGoal })}
               >
                 <SelectTrigger>
                   <SelectValue />

@@ -1,4 +1,3 @@
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.3";
 
 const corsHeaders = {
@@ -526,7 +525,8 @@ function matchInfluencersFallback(
 // EDGE FUNCTION HANDLER
 // ==========================================
 
-serve(async (req) => {
+// @ts-ignore - Deno runtime
+Deno.serve(async (req: Request) => {
   // Handle CORS preflight
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });

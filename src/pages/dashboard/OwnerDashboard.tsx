@@ -8,6 +8,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import FloatingWhatsApp from '@/components/FloatingWhatsApp';
 
 const OwnerDashboard = () => {
   const { t } = useTranslation();
@@ -220,6 +221,8 @@ const OwnerDashboard = () => {
           )}
         </Card>
       </div>
+
+      <FloatingWhatsApp />
     </div>
   );
 };

@@ -5,6 +5,7 @@ import { LanguageSwitcher } from '@/components/LanguageSwitcher';
 import { Link } from 'react-router-dom';
 import { Sparkles, Target, CreditCard } from 'lucide-react';
 import heroBg from '@/assets/hero-bg.jpg';
+import FloatingWhatsApp from '@/components/FloatingWhatsApp';
 
 const Landing = () => {
   const { t } = useTranslation();
@@ -136,6 +137,8 @@ const Landing = () => {
           <p>© 2024 InfluencerHub. All rights reserved.</p>
         </div>
       </footer>
+
+      <FloatingWhatsApp />
     </div>
   );
 };

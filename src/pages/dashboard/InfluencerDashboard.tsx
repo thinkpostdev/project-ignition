@@ -14,6 +14,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { Database } from '@/integrations/supabase/types';
 import { AgreementPopup } from '@/components/AgreementPopup';
+import FloatingWhatsApp from '@/components/FloatingWhatsApp';
 
 type ProofStatus = Database['public']['Enums']['proof_status'];
 
@@ -1152,6 +1153,8 @@ const InfluencerDashboard = () => {
           </DialogContent>
         </Dialog>
       </div>
+
+      <FloatingWhatsApp />
     </div>
   );
 };

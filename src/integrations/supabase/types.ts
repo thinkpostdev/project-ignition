@@ -719,48 +719,6 @@ export type Database = {
       }
     }
     Views: {
-      admin_influencer_view: {
-        Row: {
-          accept_hospitality: boolean | null
-          accept_paid: boolean | null
-          avg_likes_range: Database["public"]["Enums"]["avg_range"] | null
-          avg_views_instagram: Database["public"]["Enums"]["avg_range"] | null
-          avg_views_snapchat: Database["public"]["Enums"]["avg_range"] | null
-          avg_views_tiktok: Database["public"]["Enums"]["avg_range"] | null
-          avg_views_val: number | null
-          bio: string | null
-          category: Database["public"]["Enums"]["influencer_category"] | null
-          cities: string[] | null
-          city_served: string | null
-          content_style: string | null
-          content_type: string | null
-          created_at: string | null
-          display_name: string | null
-          engagement_rate: number | null
-          followers_count: number | null
-          full_name: string | null
-          history_category: string | null
-          history_price_cat: string | null
-          history_type: string | null
-          id: string | null
-          instagram_handle: string | null
-          is_approved: boolean | null
-          location: string | null
-          max_price: number | null
-          min_price: number | null
-          niche: string | null
-          notes_preferences: string | null
-          primary_platforms: string[] | null
-          snapchat_username: string | null
-          tiktok_url: string | null
-          tiktok_username: string | null
-          type_label: string | null
-          updated_at: string | null
-          user_email: string | null
-          user_id: string | null
-        }
-        Relationships: []
-      }
       campaign_influencer_suggestions_with_title: {
         Row: {
           avg_views_val: number | null
@@ -827,6 +785,34 @@ export type Database = {
       }
     }
     Functions: {
+      get_admin_influencer_data: {
+        Args: never
+        Returns: {
+          accept_hospitality: boolean
+          accept_paid: boolean
+          avg_views_val: number
+          bio: string
+          category: string
+          cities: string[]
+          city_served: string
+          content_type: string
+          created_at: string
+          display_name: string
+          full_name: string
+          id: string
+          instagram_handle: string
+          is_approved: boolean
+          max_price: number
+          min_price: number
+          primary_platforms: string[]
+          snapchat_username: string
+          tiktok_username: string
+          type_label: string
+          updated_at: string
+          user_email: string
+          user_id: string
+        }[]
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]

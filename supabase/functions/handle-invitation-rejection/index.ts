@@ -65,14 +65,17 @@ async function authenticateInfluencer(
     };
   }
 
-  // Create client with user's JWT to validate token and get user
-  const supabaseClient = createClient(
+  // Extract token from header
+  const token = authHeader.replace('Bearer ', '');
+  
+  // Use service role to verify JWT and get user info
+  const supabaseAdmin = createClient(
     Deno.env.get('SUPABASE_URL') ?? '',
-    Deno.env.get('SUPABASE_ANON_KEY') ?? '',
-    { global: { headers: { Authorization: authHeader } } }
+    Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
   );
 
-  const { data: { user }, error: authError } = await supabaseClient.auth.getUser();
+  // Verify the JWT token and get user
+  const { data: { user }, error: authError } = await supabaseAdmin.auth.getUser(token);
   
   if (authError || !user) {
     console.error("[AUTH] Invalid or expired token:", authError);
@@ -88,7 +91,7 @@ async function authenticateInfluencer(
   console.log(`[AUTH] Authenticated user: ${user.id}`);
 
   // Verify the user owns the influencer profile that's rejecting
-  const { data: influencerProfile, error: profileError } = await supabaseClient
+  const { data: influencerProfile, error: profileError } = await supabaseAdmin
     .from('influencer_profiles')
     .select('id, user_id')
     .eq('id', rejectedInfluencerId)

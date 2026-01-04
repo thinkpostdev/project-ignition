@@ -168,42 +168,43 @@ const CreateCampaign = () => {
               description: `تم اقتراح ${count} مؤثر للحملة`
             });
           }
-        } else if (matchData && !matchData.success) {
-          // Update campaign status to stop infinite polling
-          await supabase
-            .from('campaigns')
-            .update({ status: 'plan_ready' })
-            .eq('id', campaign.id);
-          
-          // Handle specific error cases from the matching algorithm
-          if (matchData.error === 'BUDGET_TOO_LOW') {
-            toast.error('الميزانية غير كافية', {
-              description: matchData.message || `أقل سعر للمؤثرين هو ${matchData.min_required_budget} ر.س`,
-              duration: 8000,
-            });
-          } else if (matchData.error === 'NO_MATCHES') {
-            toast.error('لم يتم العثور على مؤثرين', {
-              description: matchData.message || 'يرجى تعديل معايير الحملة',
-              duration: 6000,
-            });
-          } else {
-            toast.error('فشل تحليل المؤثرين', {
-              description: matchData.message || 'يرجى المحاولة مرة أخرى'
-            });
-          }
         } else {
-          // Update campaign status to stop polling
+          // Always check actual suggestions count from database
+          const { count: actualCount } = await supabase
+            .from('campaign_influencer_suggestions')
+            .select('*', { count: 'exact', head: true })
+            .eq('campaign_id', campaign.id);
+          
+          // Update campaign status
           await supabase
             .from('campaigns')
             .update({ status: 'plan_ready' })
             .eq('id', campaign.id);
           
-          const count = matchData?.suggestions_count || 0;
-          if (count > 0) {
+          if (actualCount && actualCount > 0) {
+            // Suggestions exist - always show success
             toast.success('تم العثور على مؤثرين مناسبين!', {
-              description: `تم اقتراح ${count} مؤثر للحملة`
+              description: `تم اقتراح ${actualCount} مؤثر للحملة`
             });
+          } else if (matchData && !matchData.success) {
+            // No suggestions and explicit error from matching
+            if (matchData.error === 'BUDGET_TOO_LOW') {
+              toast.error('الميزانية غير كافية', {
+                description: matchData.message || `أقل سعر للمؤثرين هو ${matchData.min_required_budget} ر.س`,
+                duration: 8000,
+              });
+            } else if (matchData.error === 'NO_MATCHES') {
+              toast.error('لم يتم العثور على مؤثرين', {
+                description: matchData.message || 'يرجى تعديل معايير الحملة',
+                duration: 6000,
+              });
+            } else {
+              toast.error('فشل تحليل المؤثرين', {
+                description: matchData.message || 'يرجى المحاولة مرة أخرى'
+              });
+            }
           } else {
+            // No suggestions but no explicit error
             toast.warning('لم يتم العثور على مؤثرين', {
               description: 'يمكنك تعديل معايير الحملة'
             });

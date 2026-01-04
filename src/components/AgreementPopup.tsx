@@ -113,61 +113,59 @@ export const AgreementPopup = ({ open, onAccept, agreementText }: AgreementPopup
 
   return (
     <Dialog open={open} modal={true}>
-      <DialogContent 
-        className="w-[95vw] sm:max-w-[700px] max-h-[90vh] p-0 [&>button]:hidden" 
-        onInteractOutside={(e) => e.preventDefault()}
-        onEscapeKeyDown={(e) => e.preventDefault()}
-        onPointerDownOutside={(e) => e.preventDefault()}
-      >
-        <DialogHeader className="px-6 pt-6 pb-4 border-b">
-          <DialogTitle className="text-xl font-bold text-center">
-           نبارك لك قبولك في منصة Influencers-Hub
-          </DialogTitle>
-          <DialogDescription className="text-center text-muted-foreground">
-            يرجى{" "}
-            <span className="text-red-600 font-medium">قراءة الاتفاقية بعناية</span>{" "}
-            و
-            <span className="text-red-600 font-medium"> الموافقة عليها</span>{" "}
-            للمتابعة وبدء العمل على المنصة
+        <DialogContent 
+          className="w-[95vw] sm:max-w-[700px] h-[85vh] flex flex-col p-0 [&>button]:hidden" 
+          onInteractOutside={(e) => e.preventDefault()}
+          onEscapeKeyDown={(e) => e.preventDefault()}
+          onPointerDownOutside={(e) => e.preventDefault()}
+        >
+          <DialogHeader className="px-6 pt-6 pb-4 border-b shrink-0">
+            <DialogTitle className="text-xl font-bold text-center">
+             نبارك لك قبولك في منصة Influencers-Hub
+            </DialogTitle>
+            <DialogDescription className="text-center">
+              يرجى قراءة الاتفاقية بعناية والموافقة عليها للمتابعة وبدء العمل على المنصة
             </DialogDescription>
-        </DialogHeader>
-        
-        <div className="px-6 py-4">
-          <ScrollArea className="h-[450px] w-full border rounded-lg p-4 mb-4">
-            <div 
-              className="text-sm leading-relaxed"
-              dir="rtl"
-              style={{ textAlign: 'right' }}
-            >
-              {formatAgreementText(agreementText || defaultText)}
-            </div>
-          </ScrollArea>
+          </DialogHeader>
           
-          <div className="flex items-start gap-3 p-4 bg-muted rounded-lg mb-4" dir="rtl">
-            <Checkbox
-              id="agreement-checkbox"
-              checked={agreed}
-              onCheckedChange={(checked) => setAgreed(checked === true)}
-              className="mt-1"
-            />
-            <label
-              htmlFor="agreement-checkbox"
-              className="text-sm leading-relaxed cursor-pointer flex-1"
-            >
-              أقرّ بمراجعتي وفهمي لهذه الاتفاقية, وأوافق على الالتزام بها عند قبول أي حملة عبر المنصّة.
-            </label>
+          <div className="flex-1 overflow-hidden px-6 py-4">
+            <ScrollArea className="h-full w-full border rounded-lg p-4">
+              <div 
+                className="text-sm leading-relaxed"
+                dir="rtl"
+                style={{ textAlign: 'right' }}
+              >
+                {formatAgreementText(agreementText || defaultText)}
+              </div>
+            </ScrollArea>
           </div>
           
-          <Button
-            onClick={handleAccept}
-            disabled={!agreed || loading}
-            className="w-full"
-            size="lg"
-          >
-            {loading ? 'جاري الحفظ...' : 'أوافق وأتابع'}
-          </Button>
-        </div>
-      </DialogContent>
+          <div className="px-6 pb-6 pt-4 border-t shrink-0 space-y-4">
+            <div className="flex items-start gap-3 p-4 bg-muted rounded-lg" dir="rtl">
+              <Checkbox
+                id="agreement-checkbox"
+                checked={agreed}
+                onCheckedChange={(checked) => setAgreed(checked === true)}
+                className="mt-1"
+              />
+              <label
+                htmlFor="agreement-checkbox"
+                className="text-sm leading-relaxed cursor-pointer flex-1"
+              >
+                أقرّ بمراجعتي وفهمي لهذه الاتفاقية, وأوافق على الالتزام بها عند قبول أي حملة عبر المنصّة.
+              </label>
+            </div>
+            
+            <Button
+              onClick={handleAccept}
+              disabled={!agreed || loading}
+              className="w-full"
+              size="lg"
+            >
+              {loading ? 'جاري الحفظ...' : 'أوافق وأتابع'}
+            </Button>
+          </div>
+        </DialogContent>
     </Dialog>
   );
 };

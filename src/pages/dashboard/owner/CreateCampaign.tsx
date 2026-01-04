@@ -152,9 +152,22 @@ const CreateCampaign = () => {
         
         if (matchError) {
           console.error('Matching error:', matchError);
-          toast.error('حدث خطأ في تحليل المؤثرين', {
-            description: 'يمكنك إعادة التحليل من صفحة الحملة'
-          });
+          // Don't show error toast if matching actually succeeded
+          // Check if suggestions were created despite the error
+          const { count } = await supabase
+            .from('campaign_influencer_suggestions')
+            .select('*', { count: 'exact', head: true })
+            .eq('campaign_id', campaign.id);
+          
+          if (!count || count === 0) {
+            toast.error('حدث خطأ في تحليل المؤثرين', {
+              description: 'يمكنك إعادة التحليل من صفحة الحملة'
+            });
+          } else {
+            toast.success('تم العثور على مؤثرين مناسبين!', {
+              description: `تم اقتراح ${count} مؤثر للحملة`
+            });
+          }
         } else if (matchData && !matchData.success) {
           // Update campaign status to stop infinite polling
           await supabase

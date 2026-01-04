@@ -138,8 +138,8 @@ async function findNewInfluencers(
   console.log(`[REPLACEMENT] City: ${branchCity}, Budget: ${remainingBudget}, Allow Hospitality: ${allowHospitality}`);
   
   try {
-    // Query ALL APPROVED influencers from the system
-    // IMPORTANT: Only approved influencers should be matched to campaigns
+    // Query ALL APPROVED influencers from the system who have accepted the agreement
+    // IMPORTANT: Only approved influencers who accepted the agreement should be matched to campaigns
     const { data: allInfluencers, error } = await supabase
       .from("influencer_profiles")
       .select(`
@@ -157,7 +157,8 @@ async function findNewInfluencers(
         accept_hospitality,
         accept_paid
       `)
-      .eq("is_approved", true);
+      .eq("is_approved", true)
+      .eq("agreement_accepted", true);
 
     if (error || !allInfluencers) {
       console.error("[REPLACEMENT] Error fetching influencers:", error);

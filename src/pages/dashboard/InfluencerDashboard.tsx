@@ -13,6 +13,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { Database } from '@/integrations/supabase/types';
+import { AgreementPopup } from '@/components/AgreementPopup';
 
 type ProofStatus = Database['public']['Enums']['proof_status'];
 
@@ -68,12 +69,21 @@ const InfluencerDashboard = () => {
   const [selectedInvitation, setSelectedInvitation] = useState<Invitation | null>(null);
   const [proofUrl, setProofUrl] = useState('');
   const [submittingProof, setSubmittingProof] = useState(false);
+  const [agreementDialogOpen, setAgreementDialogOpen] = useState(false);
+  const [checkingAgreement, setCheckingAgreement] = useState(true);
 
   useEffect(() => {
     if (user) {
       checkInfluencerProfile();
     }
   }, [user]);
+
+  useEffect(() => {
+    // Check agreement status after profile is loaded
+    if (influencerProfile && user) {
+      checkAgreementStatus();
+    }
+  }, [influencerProfile, user]);
 
   const checkInfluencerProfile = async () => {
     // Check if influencer profile exists
@@ -92,6 +102,50 @@ const InfluencerDashboard = () => {
     setInfluencerProfile(infProfile);
     fetchProfile();
     fetchInvitations(infProfile.id);
+  };
+
+  const checkAgreementStatus = async () => {
+    if (!influencerProfile || !user) return;
+
+    setCheckingAgreement(true);
+    try {
+      // Only check if influencer is approved
+      if (!influencerProfile.is_approved) {
+        setCheckingAgreement(false);
+        return;
+      }
+
+      // Check if agreement is accepted
+      if (!influencerProfile.agreement_accepted) {
+        setAgreementDialogOpen(true);
+      }
+    } catch (error) {
+      console.error('Error checking agreement status:', error);
+    } finally {
+      setCheckingAgreement(false);
+    }
+  };
+
+  const handleAcceptAgreement = async () => {
+    if (!influencerProfile || !user) return;
+
+    try {
+      const { error } = await supabase
+        .from('influencer_profiles')
+        .update({ agreement_accepted: true })
+        .eq('id', influencerProfile.id);
+
+      if (error) throw error;
+
+      // Update local state
+      setInfluencerProfile({ ...influencerProfile, agreement_accepted: true });
+      setAgreementDialogOpen(false);
+      toast.success('تم قبول الاتفاقية بنجاح');
+    } catch (error) {
+      console.error('Error accepting agreement:', error);
+      toast.error('فشل حفظ الموافقة. يرجى المحاولة مرة أخرى');
+      throw error;
+    }
   };
 
   const fetchProfile = async () => {
@@ -475,6 +529,25 @@ const InfluencerDashboard = () => {
     toast.success(t('common.logout'));
     navigate('/auth/login');
   };
+
+  // Block access if agreement not accepted
+  if (checkingAgreement) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-muted/30">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+      </div>
+    );
+  }
+
+  // Show agreement popup if not accepted
+  if (agreementDialogOpen) {
+    return (
+      <AgreementPopup
+        open={agreementDialogOpen}
+        onAccept={handleAcceptAgreement}
+      />
+    );
+  }
 
   return (
     <div className="min-h-screen bg-muted/30">

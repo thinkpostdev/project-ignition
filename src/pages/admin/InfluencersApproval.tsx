@@ -30,6 +30,7 @@ interface InfluencerProfile {
   tiktok_username: string | null;
   snapchat_username: string | null;
   is_approved: boolean | null;
+  agreement_accepted: boolean | null;
   created_at: string;
   full_name: string | null;
   phone: string | null;
@@ -220,13 +221,14 @@ export default function InfluencersApproval() {
                 <TableHead>Social Handles</TableHead>
                 <TableHead>Registration Date</TableHead>
                 <TableHead>Status</TableHead>
+                <TableHead>Agreement</TableHead>
                 <TableHead className="text-right">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {filteredInfluencers.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={7} className="text-center py-8 text-gray-500">
+                  <TableCell colSpan={8} className="text-center py-8 text-gray-500">
                     No influencers found
                   </TableCell>
                 </TableRow>
@@ -263,6 +265,18 @@ export default function InfluencersApproval() {
                       ) : (
                         <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-yellow-100 text-yellow-700">
                           Pending
+                        </span>
+                      )}
+                    </TableCell>
+                    <TableCell>
+                      {influencer.agreement_accepted ? (
+                        <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-700">
+                          <CheckCircle className="h-3 w-3" />
+                          Accepted
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-red-100 text-red-700">
+                          Not Accepted
                         </span>
                       )}
                     </TableCell>

@@ -132,7 +132,10 @@ const InfluencerDashboard = () => {
     try {
       const { error } = await supabase
         .from('influencer_profiles')
-        .update({ agreement_accepted: true })
+        .update({ 
+          agreement_accepted: true,
+          updated_at: new Date().toISOString()
+        })
         .eq('id', influencerProfile.id);
 
       if (error) throw error;

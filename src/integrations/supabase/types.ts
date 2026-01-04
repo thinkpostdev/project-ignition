@@ -67,6 +67,7 @@ export type Database = {
           avg_views_val: number | null
           campaign_id: string
           city_served: string | null
+          compaign_name: string | null
           content_type: string | null
           created_at: string | null
           history_price_cat: string | null
@@ -85,6 +86,7 @@ export type Database = {
           avg_views_val?: number | null
           campaign_id: string
           city_served?: string | null
+          compaign_name?: string | null
           content_type?: string | null
           created_at?: string | null
           history_price_cat?: string | null
@@ -103,6 +105,7 @@ export type Database = {
           avg_views_val?: number | null
           campaign_id?: string
           city_served?: string | null
+          compaign_name?: string | null
           content_type?: string | null
           created_at?: string | null
           history_price_cat?: string | null
@@ -401,6 +404,7 @@ export type Database = {
         Row: {
           accept_hospitality: boolean | null
           accept_paid: boolean | null
+          agreement_accepted: boolean | null
           avg_likes_range: Database["public"]["Enums"]["avg_range"] | null
           avg_views_instagram: Database["public"]["Enums"]["avg_range"] | null
           avg_views_snapchat: Database["public"]["Enums"]["avg_range"] | null
@@ -440,6 +444,7 @@ export type Database = {
         Insert: {
           accept_hospitality?: boolean | null
           accept_paid?: boolean | null
+          agreement_accepted?: boolean | null
           avg_likes_range?: Database["public"]["Enums"]["avg_range"] | null
           avg_views_instagram?: Database["public"]["Enums"]["avg_range"] | null
           avg_views_snapchat?: Database["public"]["Enums"]["avg_range"] | null
@@ -479,6 +484,7 @@ export type Database = {
         Update: {
           accept_hospitality?: boolean | null
           accept_paid?: boolean | null
+          agreement_accepted?: boolean | null
           avg_likes_range?: Database["public"]["Enums"]["avg_range"] | null
           avg_views_instagram?: Database["public"]["Enums"]["avg_range"] | null
           avg_views_snapchat?: Database["public"]["Enums"]["avg_range"] | null
@@ -754,6 +760,44 @@ export type Database = {
           user_id: string | null
         }
         Relationships: []
+      }
+      campaign_influencer_suggestions_with_title: {
+        Row: {
+          avg_views_val: number | null
+          campaign_id: string | null
+          city_served: string | null
+          compaign_name: string | null
+          compaign_title: string | null
+          content_type: string | null
+          created_at: string | null
+          history_price_cat: string | null
+          history_type: string | null
+          id: string | null
+          influencer_id: string | null
+          match_score: number | null
+          min_price: number | null
+          name: string | null
+          platform: string | null
+          scheduled_date: string | null
+          selected: boolean | null
+          type_label: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "campaign_influencer_suggestions_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "campaigns"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "campaign_influencer_suggestions_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "developer_tracking_view"
+            referencedColumns: ["campaign_id"]
+          },
+        ]
       }
       developer_tracking_view: {
         Row: {

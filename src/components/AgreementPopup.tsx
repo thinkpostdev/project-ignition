@@ -127,7 +127,7 @@ export const AgreementPopup = ({ open, onAccept, agreementText }: AgreementPopup
             يرجى{" "}
             <span className="text-red-600 font-medium">قراءة الاتفاقية بعناية</span>{" "}
             و
-            <span className="text-red-600 font-medium">الموافقة عليها</span>{" "}
+            <span className="text-red-600 font-medium"> الموافقة عليها</span>{" "}
             للمتابعة وبدء العمل على المنصة
             </DialogDescription>
         </DialogHeader>

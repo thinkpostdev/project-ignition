@@ -23,7 +23,6 @@ import { cn } from '@/lib/utils';
 
 const campaignSchema = z.object({
   title: z.string().trim().min(5, 'العنوان يجب أن يكون 5 أحرف على الأقل').max(200, 'العنوان طويل جداً'),
-  description: z.string().trim().min(20, 'الوصف يجب أن يكون 20 حرف على الأقل').max(2000, 'الوصف طويل جداً'),
   branch_id: z.string().min(1, 'يجب اختيار فرع للحملة'),
   goal: z.enum(['opening', 'promotions', 'new_products', 'other']),
   goal_details: z.string().trim().max(500).optional(),
@@ -33,7 +32,7 @@ const campaignSchema = z.object({
     required_error: 'يجب اختيار تاريخ بدء الحملة',
     invalid_type_error: 'يجب اختيار تاريخ صحيح',
   }),
-  duration_days: z.number().min(1, 'المدة يجب أن تكون يوم واحد على الأقل').max(90, 'المدة يجب ألا تتجاوز 90 يوم'),
+  duration_days: z.number().min(1, 'المدة يجب أن تكون يوم واحد على الأقل').max(30, 'المدة يجب ألا تتجاوز 30 يوم'),
   add_bonus_hospitality: z.boolean(),
   target_followers_min: z.number().min(0).optional(),
   target_followers_max: z.number().min(0).optional(),
@@ -55,7 +54,6 @@ const CreateCampaign = () => {
     resolver: zodResolver(campaignSchema),
     defaultValues: {
       title: '',
-      description: '',
       goal_details: '',
       content_requirements: '',
       duration_days: 10, // Default duration
@@ -119,7 +117,7 @@ const CreateCampaign = () => {
         .insert([{
           owner_id: user.id,
           title: data.title,
-          description: data.description,
+          description: data.description || null,
           branch_id: data.branch_id,
           goal: data.goal,
           goal_details: data.goal_details || null,
@@ -219,7 +217,7 @@ const CreateCampaign = () => {
     
     if (step === 1) {
       // Include branch_id in validation - it's required for the matching algorithm
-      fieldsToValidate = ['title', 'description', 'branch_id', 'goal', 'goal_details'];
+      fieldsToValidate = ['title', 'branch_id', 'goal', 'goal_details'];
     } else if (step === 2) {
       // Validate budget, start_date, and duration_days before submission
       fieldsToValidate = ['budget', 'start_date', 'duration_days'];
@@ -306,20 +304,7 @@ const CreateCampaign = () => {
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="description">وصف الحملة *</Label>
-                  <Textarea
-                    id="description"
-                    rows={5}
-                    placeholder="اشرح أهداف حملتك، قيم علامتك التجارية، وما تبحث عنه في شراكات المؤثرين..."
-                    {...form.register('description')}
-                  />
-                  {form.formState.errors.description && (
-                    <p className="text-sm text-destructive">{form.formState.errors.description.message}</p>
-                  )}
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="branch_id">الفرع * (مطلوب لتحليل المؤثرين)</Label>
+                  <Label htmlFor="branch_id">الفرع المطلوب لهذه الحملة *</Label>
                   {branches.length > 0 ? (
                     <>
                       <Select 
@@ -386,21 +371,21 @@ const CreateCampaign = () => {
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="goal_details">تفاصيل الهدف</Label>
+                  <Label htmlFor="goal_details">تفاصيل الهدف (اختياري)</Label>
                   <Textarea
                     id="goal_details"
                     rows={3}
-                    placeholder="تفاصيل إضافية عن الهدف..."
+                    placeholder="اكتب تفاصيل اضافية عن هدف الحملة مثل : تفاصيل المنتج , ما يجب التركيز عليه في الحملة ..."
                     {...form.register('goal_details')}
                   />
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="content_requirements">متطلبات المحتوى</Label>
+                  <Label htmlFor="content_requirements">متطلبات المحتوى (اختياري)</Label>
                   <Textarea
                     id="content_requirements"
                     rows={4}
-                    placeholder="حدد متطلبات المحتوى: عدد المنشورات، القصص، الريلز، الهاشتاجات، إلخ."
+                    placeholder="اكتب اذا كان هناك متطلبات معينة للمحتوى مثل فكرة المحتوى , هاشتاقات ,..."
                     {...form.register('content_requirements')}
                   />
                 </div>
@@ -423,9 +408,6 @@ const CreateCampaign = () => {
                     placeholder="5000"
                     {...form.register('budget', { valueAsNumber: true })}
                   />
-                  <p className="text-xs text-muted-foreground bg-blue-50 dark:bg-blue-900/20 p-2 rounded border border-blue-200 dark:border-blue-800">
-                    💡 <strong>ملاحظة:</strong> عند إتمام الدفع، ستضاف رسوم خدمة بنسبة 20% على تكلفة المؤثرين المختارين.
-                  </p>
                   {form.formState.errors.budget && (
                     <p className="text-sm text-destructive">{form.formState.errors.budget.message}</p>
                   )}

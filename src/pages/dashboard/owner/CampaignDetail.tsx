@@ -820,15 +820,6 @@ const CampaignDetail = () => {
 
               <div className="bg-background rounded-lg p-4">
                 <div className="flex items-center gap-2 mb-1">
-                  <Eye className="h-4 w-4 text-blue-600" />
-                  <span className="text-sm text-muted-foreground">الوصول الحالي</span>
-                </div>
-                <p className="text-2xl font-bold">{formatViewsCount(currentStats.totalReach)}</p>
-                <p className="text-xs text-muted-foreground">مشاهدة تقريباً</p>
-              </div>
-
-              <div className="bg-background rounded-lg p-4">
-                <div className="flex items-center gap-2 mb-1">
                   <Gift className="h-4 w-4 text-amber-600" />
                   <span className="text-sm text-muted-foreground">ضيافة إضافية</span>
                 </div>
@@ -1122,7 +1113,7 @@ const CampaignDetail = () => {
                               <div className="flex items-center gap-1">
                                 <Eye className="h-4 w-4 text-blue-600" />
                                 <span className="text-blue-600">
-                                  {formatViewsCount(suggestion.avg_views_val)} مشاهدة
+                                  {formatViewsCount(suggestion.avg_views_val)} المشاهدات المتوقعة
                                 </span>
                               </div>
                             )}

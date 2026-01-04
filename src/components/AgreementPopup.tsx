@@ -123,9 +123,13 @@ export const AgreementPopup = ({ open, onAccept, agreementText }: AgreementPopup
           <DialogTitle className="text-xl font-bold text-center">
            نبارك لك قبولك في منصة Influencers-Hub
           </DialogTitle>
-          <DialogDescription className="text-center">
-            يرجى قراءة الاتفاقية بعناية والموافقة عليها للمتابعة وبدء العمل على المنصة
-          </DialogDescription>
+          <DialogDescription className="text-center text-muted-foreground">
+            يرجى{" "}
+            <span className="text-red-600 font-medium">قراءة الاتفاقية بعناية</span>{" "}
+            و
+            <span className="text-red-600 font-medium">الموافقة عليها</span>{" "}
+            للمتابعة وبدء العمل على المنصة
+            </DialogDescription>
         </DialogHeader>
         
         <div className="px-6 py-4">

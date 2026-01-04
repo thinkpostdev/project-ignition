@@ -132,8 +132,8 @@ export const AgreementPopup = ({ open, onAccept, agreementText }: AgreementPopup
           <ScrollArea className="h-[450px] w-full border rounded-lg p-4 mb-4">
             <div 
               className="text-sm leading-relaxed"
-              dir="ltr"
-              style={{ textAlign: 'left' }}
+              dir="rtl"
+              style={{ textAlign: 'right' }}
             >
               {formatAgreementText(agreementText || defaultText)}
             </div>

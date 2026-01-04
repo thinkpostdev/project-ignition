@@ -98,7 +98,7 @@ interface ScoredInfluencer extends Influencer {
   computed_type_label: 'Hospitality' | 'Paid';
   is_hospitality_bonus: boolean;
   estimated_views: number;
-  matched_city: string; // The city this influencer was matched for
+  matched_city: string;
 }
 
 interface MatchingSummary {
@@ -112,34 +112,94 @@ interface MatchingSummary {
   remaining_budget: number;
 }
 
-/**
- * Campaign goals that affect date scheduling behavior.
- * 'opening' = branch opening, all influencers get the same date
- * Others = sequential dates, one per day
- */
 type CampaignGoal = 'opening' | 'promotions' | 'new_products' | 'other';
 
-/**
- * Assigns scheduled dates to influencers based on campaign duration.
- * 
- * Rules:
- * - All campaigns: Spread influencers evenly across the campaign duration
- *   - If duration is provided, influencers are distributed across those days
- *   - If no duration, fallback to sequential dates (one per day)
- * 
- * @param influencers - Ordered list of matched influencers
- * @param startDate - Campaign start date (ISO string or Date)
- * @param goal - Campaign goal type (kept for compatibility, not used for date logic)
- * @param durationDays - Campaign duration in days (optional)
- * @returns Array of influencers with scheduled_date assigned
- */
+// ==========================================
+// AUTHENTICATION HELPER
+// ==========================================
+
+async function authenticateAndValidateOwnership(
+  req: Request,
+  campaignId: string
+): Promise<{ success: true; userId: string } | { success: false; response: Response }> {
+  const authHeader = req.headers.get('Authorization');
+  
+  if (!authHeader) {
+    console.error("[AUTH] No authorization header provided");
+    return {
+      success: false,
+      response: new Response(
+        JSON.stringify({ error: 'Unauthorized: No authorization header' }),
+        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      )
+    };
+  }
+
+  // Create client with user's JWT to validate token and get user
+  const supabaseClient = createClient(
+    Deno.env.get('SUPABASE_URL') ?? '',
+    Deno.env.get('SUPABASE_ANON_KEY') ?? '',
+    { global: { headers: { Authorization: authHeader } } }
+  );
+
+  const { data: { user }, error: authError } = await supabaseClient.auth.getUser();
+  
+  if (authError || !user) {
+    console.error("[AUTH] Invalid or expired token:", authError);
+    return {
+      success: false,
+      response: new Response(
+        JSON.stringify({ error: 'Unauthorized: Invalid token' }),
+        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      )
+    };
+  }
+
+  console.log(`[AUTH] Authenticated user: ${user.id}`);
+
+  // Verify campaign ownership using user's session (RLS will enforce)
+  const { data: campaign, error: campaignError } = await supabaseClient
+    .from('campaigns')
+    .select('owner_id')
+    .eq('id', campaignId)
+    .single();
+
+  if (campaignError || !campaign) {
+    console.error("[AUTH] Campaign not found or access denied:", campaignError);
+    return {
+      success: false,
+      response: new Response(
+        JSON.stringify({ error: 'Forbidden: Campaign not found or access denied' }),
+        { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      )
+    };
+  }
+
+  if (campaign.owner_id !== user.id) {
+    console.error("[AUTH] User is not the campaign owner");
+    return {
+      success: false,
+      response: new Response(
+        JSON.stringify({ error: 'Forbidden: Not the campaign owner' }),
+        { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      )
+    };
+  }
+
+  console.log(`[AUTH] User ${user.id} authorized for campaign ${campaignId}`);
+  return { success: true, userId: user.id };
+}
+
+// ==========================================
+// UTILITY FUNCTIONS
+// ==========================================
+
 function assignInfluencerDates<T extends { id: string }>(
   influencers: T[],
   startDate: string | Date | null,
   goal: CampaignGoal | string | null,
   durationDays: number | null | undefined
 ): (T & { scheduled_date: string | null })[] {
-  // If no start date provided, return null dates
   if (!startDate) {
     console.log("[SCHEDULING] No start date provided, skipping date assignment");
     return influencers.map(inf => ({ ...inf, scheduled_date: null }));
@@ -147,21 +207,14 @@ function assignInfluencerDates<T extends { id: string }>(
 
   const baseDate = new Date(startDate);
   
-  // Validate date
   if (isNaN(baseDate.getTime())) {
     console.log("[SCHEDULING] Invalid start date, skipping date assignment");
     return influencers.map(inf => ({ ...inf, scheduled_date: null }));
   }
 
-  console.log(`[SCHEDULING] ========== DATE ASSIGNMENT DEBUG ==========`);
   console.log(`[SCHEDULING] Assigning dates for ${influencers.length} influencers`);
-  console.log(`[SCHEDULING] Goal: "${goal}" (type: ${typeof goal})`);
-  console.log(`[SCHEDULING] Duration: ${durationDays} days (type: ${typeof durationDays})`);
-  console.log(`[SCHEDULING] Mode: SPREAD_ACROSS_DURATION (all campaigns now spread influencers)`);
-  console.log(`[SCHEDULING] Start date: ${baseDate.toISOString().split('T')[0]}`);
-  console.log(`[SCHEDULING] ============================================`);
+  console.log(`[SCHEDULING] Duration: ${durationDays} days`);
 
-  // If no influencers, return empty array
   if (influencers.length === 0) {
     return [];
   }
@@ -169,43 +222,29 @@ function assignInfluencerDates<T extends { id: string }>(
   return influencers.map((influencer, index) => {
     let scheduledDate: Date;
     
-    // All campaigns: spread influencers across the duration
     if (durationDays && durationDays > 0) {
-        // Calculate the end date (start_date + duration_days - 1)
-        // We subtract 1 because the start date is day 0
         const endDate = new Date(baseDate);
         endDate.setDate(endDate.getDate() + (durationDays - 1));
         
-        // If we have only one influencer, place them on the start date
         if (influencers.length === 1) {
           scheduledDate = new Date(baseDate);
-          console.log(`[SCHEDULING] Influencer 1/1: Scheduled on start date (${baseDate.toISOString().split('T')[0]})`);
         } else {
-          // Distribute influencers evenly across the duration
-          // Calculate the interval: (durationDays - 1) / (influencers.length - 1)
-          // This ensures the first influencer is on start_date and last is on end_date
           const interval = (durationDays - 1) / (influencers.length - 1);
           const daysToAdd = Math.round(index * interval);
           
           scheduledDate = new Date(baseDate);
           scheduledDate.setDate(scheduledDate.getDate() + daysToAdd);
           
-          // Ensure we don't exceed the end date
           const maxDate = new Date(endDate);
           if (scheduledDate > maxDate) {
             scheduledDate = new Date(maxDate);
           }
-          
-          console.log(`[SCHEDULING] Influencer ${index + 1}/${influencers.length}: Day ${Math.round(index * interval) + 1} of ${durationDays} days`);
         }
     } else {
-      // Fallback: sequential dates, one influencer per day (original behavior)
       scheduledDate = new Date(baseDate);
       scheduledDate.setDate(scheduledDate.getDate() + index);
-      console.log(`[SCHEDULING] No duration specified, using sequential dates`);
     }
     
-    // Format as YYYY-MM-DD for database
     const dateStr = scheduledDate.toISOString().split('T')[0];
     
     return {
@@ -215,13 +254,6 @@ function assignInfluencerDates<T extends { id: string }>(
   });
 }
 
-// ==========================================
-// UTILITY FUNCTIONS
-// ==========================================
-
-/**
- * Normalizes a city name to its canonical Arabic form.
- */
 function normalizeCity(city: string): string {
   const lowerCity = city.toLowerCase().trim();
   
@@ -234,21 +266,15 @@ function normalizeCity(city: string): string {
   return city.trim();
 }
 
-/**
- * Checks if an influencer serves a given target city.
- * Uses exact matching after normalization.
- */
 function influencerServesCity(influencer: Influencer, targetCity: string): boolean {
   const normalizedTarget = normalizeCity(targetCity);
   
-  // Check city_served field
   if (influencer.city_served) {
     if (normalizeCity(influencer.city_served) === normalizedTarget) {
       return true;
     }
   }
   
-  // Check cities array
   if (influencer.cities && influencer.cities.length > 0) {
     for (const city of influencer.cities) {
       if (normalizeCity(city) === normalizedTarget) {
@@ -260,10 +286,6 @@ function influencerServesCity(influencer: Influencer, targetCity: string): boole
   return false;
 }
 
-/**
- * Converts avg_views enum to numeric value.
- * Prefers direct numeric value if available.
- */
 function getAvgViewsValue(avgViewsEnum: string | null, avgViewsVal: number | null): number {
   if (avgViewsVal && avgViewsVal > 0) {
     return avgViewsVal;
@@ -276,13 +298,7 @@ function getAvgViewsValue(avgViewsEnum: string | null, avgViewsVal: number | nul
   return DEFAULT_VIEWS;
 }
 
-/**
- * Determines the type label for an influencer.
- * "Hospitality" = accepts free collaborations (no min_price or accept_hospitality=true)
- * "Paid" = requires payment
- */
 function determineTypeLabel(influencer: Influencer): 'Hospitality' | 'Paid' {
-  // Explicit type_label takes precedence
   if (influencer.type_label) {
     const label = influencer.type_label.toLowerCase();
     if (label.includes('hospitality') || label.includes('ضيافة')) {
@@ -293,18 +309,15 @@ function determineTypeLabel(influencer: Influencer): 'Hospitality' | 'Paid' {
     }
   }
   
-  // Hospitality if no price or explicitly accepts hospitality
   if ((influencer.min_price === null || influencer.min_price === 0) && 
       influencer.accept_hospitality === true) {
     return 'Hospitality';
   }
   
-  // Paid if has a price
   if (influencer.min_price && influencer.min_price > 0) {
     return 'Paid';
   }
   
-  // Default to Hospitality if accept_hospitality is true
   if (influencer.accept_hospitality === true) {
     return 'Hospitality';
   }
@@ -312,17 +325,11 @@ function determineTypeLabel(influencer: Influencer): 'Hospitality' | 'Paid' {
   return 'Paid';
 }
 
-/**
- * Calculates match score for an influencer.
- * Score range: 0-100 (40 from content type + 60 from reach)
- */
 function calculateMatchScore(influencer: Influencer, maxViews: number): number {
   let score = 0;
   
-  // 1. Content Type Relevance Score (max 40 points)
   const contentType = (influencer.content_type || influencer.category || '').toLowerCase();
   
-  // Check for food-related content (highest priority for restaurant platform)
   if (contentType.includes('food') || 
       contentType === 'food_reviews' || 
       contentType.includes('طعام') ||
@@ -330,21 +337,17 @@ function calculateMatchScore(influencer: Influencer, maxViews: number): number {
       contentType.includes('أكل')) {
     score += MATCHING_CONFIG.weights.foodReviews;
   } 
-  // Lifestyle content
   else if (contentType.includes('lifestyle') || 
            contentType === 'lifestyle' ||
            contentType.includes('نمط حياة')) {
     score += MATCHING_CONFIG.weights.lifestyle;
   } 
-  // Travel content
   else if (contentType.includes('travel') || 
            contentType === 'travel' ||
            contentType.includes('سفر')) {
     score += MATCHING_CONFIG.weights.travel;
   }
-  // Other categories get 0 additional points
   
-  // 2. Reach Score based on views (max 60 points)
   const avgViews = getAvgViewsValue(influencer.avg_views_tiktok, influencer.avg_views_val);
   if (maxViews > 0) {
     score += (avgViews / maxViews) * MATCHING_CONFIG.maxReachScore;
@@ -357,14 +360,6 @@ function calculateMatchScore(influencer: Influencer, maxViews: number): number {
 // MATCHING ALGORITHM
 // ==========================================
 
-/**
- * Main matching algorithm.
- * 
- * 1. Filters influencers by city
- * 2. Calculates match scores based on content type and reach
- * 3. Selects paid influencers within budget (sorted by score)
- * 4. Optionally adds hospitality bonus influencers
- */
 function matchInfluencers(
   campaignBudget: number,
   branchCity: string,
@@ -374,34 +369,29 @@ function matchInfluencers(
   console.log(`[MATCH] Starting match for city: "${branchCity}", budget: ${campaignBudget}, hospitality_bonus: ${addBonusHospitality}`);
   console.log(`[MATCH] Total influencers in pool: ${influencers.length}`);
   
-  // A. Filter by City
   const filteredInfluencers = influencers.filter(inf => influencerServesCity(inf, branchCity));
   
   console.log(`[MATCH] Influencers matching city "${branchCity}": ${filteredInfluencers.length}`);
   
   if (filteredInfluencers.length === 0) {
-    console.log("[MATCH] No influencers in city, using fallback (all influencers with reduced score)");
+    console.log("[MATCH] No influencers in city, using fallback");
     return matchInfluencersFallback(campaignBudget, addBonusHospitality, influencers);
   }
   
-  // B. Calculate max views for normalization
   const maxViews = Math.max(
     ...filteredInfluencers.map(inf => getAvgViewsValue(inf.avg_views_tiktok, inf.avg_views_val)),
-    1 // Prevent division by zero
+    1
   );
-  console.log(`[MATCH] Max views in pool: ${maxViews}`);
   
-  // C. Score all filtered influencers
   const scoredInfluencers: ScoredInfluencer[] = filteredInfluencers.map(inf => ({
     ...inf,
     match_score: calculateMatchScore(inf, maxViews),
     computed_type_label: determineTypeLabel(inf),
     is_hospitality_bonus: false,
     estimated_views: getAvgViewsValue(inf.avg_views_tiktok, inf.avg_views_val),
-    matched_city: branchCity, // They matched the target city
+    matched_city: branchCity,
   }));
   
-  // D. Separate Paid vs Hospitality
   const paidInfluencers = scoredInfluencers
     .filter(inf => inf.computed_type_label === 'Paid' && (inf.min_price || 0) > 0)
     .sort((a, b) => b.match_score - a.match_score);
@@ -412,7 +402,6 @@ function matchInfluencers(
   
   console.log(`[MATCH] Paid influencers: ${paidInfluencers.length}, Hospitality: ${hospitalityInfluencers.length}`);
   
-  // E. Budget Allocation - Select paid influencers within budget
   const selectedInfluencers: ScoredInfluencer[] = [];
   let remainingBudget = campaignBudget;
   
@@ -430,13 +419,6 @@ function matchInfluencers(
   
   console.log(`[MATCH] Selected ${selectedInfluencers.length} paid influencers, remaining budget: ${remainingBudget}`);
   
-  // Check if we found paid influencers but couldn't afford any
-  if (selectedInfluencers.length === 0 && paidInfluencers.length > 0) {
-    const cheapestInfluencer = Math.min(...paidInfluencers.map(inf => inf.min_price || Infinity));
-    console.log(`[MATCH] WARNING: Budget too low. Cheapest influencer costs ${cheapestInfluencer}, but budget is ${campaignBudget}`);
-  }
-  
-  // F. Add Hospitality Bonus
   if (addBonusHospitality) {
     const alreadySelectedIds = new Set(selectedInfluencers.map(s => s.id));
     
@@ -458,10 +440,6 @@ function matchInfluencers(
   return selectedInfluencers;
 }
 
-/**
- * Fallback matching when no influencers serve the target city.
- * Uses all influencers but applies a score penalty.
- */
 function matchInfluencersFallback(
   campaignBudget: number,
   addBonusHospitality: boolean,
@@ -480,7 +458,7 @@ function matchInfluencersFallback(
     computed_type_label: determineTypeLabel(inf),
     is_hospitality_bonus: false,
     estimated_views: getAvgViewsValue(inf.avg_views_tiktok, inf.avg_views_val),
-    matched_city: inf.city_served || (inf.cities?.[0] ?? 'غير محدد'), // Fallback mode - show their primary city
+    matched_city: inf.city_served || (inf.cities?.[0] ?? 'غير محدد'),
   }));
   
   const paidInfluencers = scoredInfluencers
@@ -497,14 +475,19 @@ function matchInfluencersFallback(
   
   for (const influencer of paidInfluencers) {
     const cost = influencer.min_price || 0;
+    
     if (cost > 0 && remainingBudget >= cost) {
-      selectedInfluencers.push(influencer);
+      selectedInfluencers.push({
+        ...influencer,
+        is_hospitality_bonus: false,
+      });
       remainingBudget -= cost;
     }
   }
   
   if (addBonusHospitality) {
     const alreadySelectedIds = new Set(selectedInfluencers.map(s => s.id));
+    
     const bonusPicks = hospitalityInfluencers
       .filter(inf => !alreadySelectedIds.has(inf.id))
       .slice(0, MATCHING_CONFIG.hospitalityBonusSlots);
@@ -536,14 +519,25 @@ Deno.serve(async (req: Request) => {
     const { campaign_id } = await req.json();
     
     if (!campaign_id) {
-      throw new Error("campaign_id is required");
+      return new Response(
+        JSON.stringify({ error: "campaign_id is required" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
     }
     
     console.log("[HANDLER] Starting influencer matching for campaign:", campaign_id);
 
+    // SECURITY: Authenticate user and validate campaign ownership
+    const authResult = await authenticateAndValidateOwnership(req, campaign_id);
+    if (!authResult.success) {
+      return authResult.response;
+    }
+
+    console.log("[HANDLER] User authenticated and authorized");
+
+    // Use service role for privileged database operations
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
     // Fetch campaign details with branch info
@@ -577,8 +571,7 @@ Deno.serve(async (req: Request) => {
 
     console.log("[HANDLER] Campaign fetched:", JSON.stringify(campaign, null, 2));
 
-    // Extract campaign parameters
-    const branchCity = campaign.branches?.city || 'الرياض';
+    const branchCity = (campaign.branches as any)?.city || 'الرياض';
     const campaignBudget = campaign.budget || 0;
     const addBonusHospitality = campaign.add_bonus_hospitality ?? false;
     const campaignGoal = campaign.goal as CampaignGoal | null;
@@ -586,10 +579,8 @@ Deno.serve(async (req: Request) => {
     const campaignDurationDays = campaign.duration_days;
 
     console.log(`[HANDLER] Parameters: budget=${campaignBudget}, city="${branchCity}", hospitality_bonus=${addBonusHospitality}`);
-    console.log(`[HANDLER] Scheduling: goal="${campaignGoal}", start_date="${campaignStartDate}", duration_days=${campaignDurationDays}`);
 
     // Fetch only APPROVED influencer profiles who have accepted the agreement
-    // Influencers must be approved by admin AND accept the agreement before they can be matched to campaigns
     const { data: influencers, error: influencersError } = await supabase
       .from("influencer_profiles")
       .select(`
@@ -618,21 +609,30 @@ Deno.serve(async (req: Request) => {
       throw new Error(`Failed to fetch influencers: ${influencersError.message}`);
     }
 
-    console.log(`[HANDLER] Found ${influencers?.length || 0} total influencers in database`);
-
     if (!influencers || influencers.length === 0) {
+      console.warn("[HANDLER] No approved influencers found");
       return new Response(
-        JSON.stringify({ 
-          success: true, 
-          message: "No influencers found to match",
-          suggestions_count: 0,
-          strategy: null,
+        JSON.stringify({
+          success: true,
+          campaign_id: campaign_id,
+          message: "No approved influencers available for matching",
+          matched_count: 0,
+          suggestions: [],
+          budget_summary: {
+            total_budget: campaignBudget,
+            allocated_budget: 0,
+            remaining_budget: campaignBudget,
+            service_fee: 0,
+            total_with_fee: 0,
+          },
         }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    // Run the matching algorithm
+    console.log(`[HANDLER] Found ${influencers.length} approved influencers`);
+
+    // Run matching algorithm
     const matchedInfluencers = matchInfluencers(
       campaignBudget,
       branchCity,
@@ -640,83 +640,9 @@ Deno.serve(async (req: Request) => {
       influencers as Influencer[]
     );
 
-    console.log(`[HANDLER] Algorithm selected ${matchedInfluencers.length} influencers`);
+    console.log(`[HANDLER] Matched ${matchedInfluencers.length} influencers`);
 
-    if (matchedInfluencers.length === 0) {
-      // Check if the issue is budget-related
-      const allInfluencersInCity = influencers.filter(inf => 
-        influencerServesCity(inf as Influencer, branchCity)
-      );
-      
-      const paidInfluencersInCity = allInfluencersInCity.filter(inf => {
-        const minPrice = inf.min_price || 0;
-        return minPrice > 0;
-      });
-      
-      if (paidInfluencersInCity.length > 0) {
-        const cheapestInfluencer = Math.min(...paidInfluencersInCity.map(inf => inf.min_price || Infinity));
-        
-        if (cheapestInfluencer > campaignBudget) {
-          // Budget is too low
-          console.log(`[HANDLER] Budget insufficient: cheapest=${cheapestInfluencer}, budget=${campaignBudget}`);
-          
-          return new Response(
-            JSON.stringify({ 
-              success: false, 
-              error: "BUDGET_TOO_LOW",
-              message: `الميزانية غير كافية. أقل سعر للمؤثرين في ${branchCity} هو ${cheapestInfluencer} ر.س، والميزانية المحددة ${campaignBudget} ر.س. يرجى زيادة الميزانية أو تفعيل خيار الضيافة المجانية.`,
-              min_required_budget: cheapestInfluencer,
-              current_budget: campaignBudget,
-              suggestions_count: 0,
-              strategy: null,
-            }),
-            { 
-              status: 400,
-              headers: { ...corsHeaders, "Content-Type": "application/json" } 
-            }
-          );
-        }
-      }
-      
-      // Generic no match message
-      return new Response(
-        JSON.stringify({ 
-          success: false,
-          error: "NO_MATCHES",
-          message: "لم يتم العثور على مؤثرين مناسبين لمعايير الحملة. يرجى تعديل الميزانية أو تفعيل خيار الضيافة المجانية.",
-          suggestions_count: 0,
-          strategy: null,
-        }),
-        { 
-          status: 400,
-          headers: { ...corsHeaders, "Content-Type": "application/json" } 
-        }
-      );
-    }
-
-    // Calculate summary statistics
-    const paidSelected = matchedInfluencers.filter(i => i.computed_type_label === 'Paid' && !i.is_hospitality_bonus);
-    const hospitalitySelected = matchedInfluencers.filter(i => i.is_hospitality_bonus || i.computed_type_label === 'Hospitality');
-    
-    const totalCost = paidSelected.reduce((sum, inf) => sum + (inf.min_price || 0), 0);
-    const serviceFee = totalCost * 0.20; // 20% service fee
-    const totalCostWithFee = totalCost + serviceFee;
-    const totalReach = matchedInfluencers.reduce((sum, inf) => sum + inf.estimated_views, 0);
-
-    const strategySummary: MatchingSummary = {
-      total_influencers: matchedInfluencers.length,
-      paid_influencers: paidSelected.length,
-      hospitality_influencers: hospitalitySelected.length,
-      total_cost: totalCost,
-      service_fee: serviceFee,
-      total_cost_with_fee: totalCostWithFee,
-      total_reach: totalReach,
-      remaining_budget: campaignBudget - totalCost,
-    };
-
-    console.log("[HANDLER] Strategy summary:", JSON.stringify(strategySummary, null, 2));
-
-    // Assign scheduled dates to influencers based on campaign goal and duration
+    // Assign scheduled dates
     const influencersWithDates = assignInfluencerDates(
       matchedInfluencers,
       campaignStartDate,
@@ -724,66 +650,91 @@ Deno.serve(async (req: Request) => {
       campaignDurationDays
     );
 
-    // Prepare suggestions for database
-    // Use matched_city which is set correctly by the matching algorithm
-    const suggestionsToInsert = influencersWithDates.map(inf => ({
-      campaign_id,
-      influencer_id: inf.id,
-      match_score: inf.match_score,
-      name: inf.display_name,
-      city_served: inf.matched_city, // Use the city they were matched for
-      platform: inf.primary_platforms?.[0] || 'TikTok',
-      content_type: inf.content_type || inf.category,
-      min_price: inf.min_price,
-      avg_views_val: inf.estimated_views,
-      type_label: inf.computed_type_label,
-      history_type: inf.history_type,
-      history_price_cat: inf.history_price_cat,
-      selected: false,
-      scheduled_date: inf.scheduled_date,
-    }));
+    // Calculate budget summary
+    const paidCost = matchedInfluencers
+      .filter(inf => inf.computed_type_label === 'Paid')
+      .reduce((sum, inf) => sum + (inf.min_price || 0), 0);
+    const serviceFee = Math.round(paidCost * 0.15);
+    const totalWithFee = paidCost + serviceFee;
 
-    // Delete existing suggestions for this campaign (in case of re-run)
+    const budgetSummary = {
+      total_budget: campaignBudget,
+      allocated_budget: paidCost,
+      remaining_budget: campaignBudget - paidCost,
+      service_fee: serviceFee,
+      total_with_fee: totalWithFee,
+    };
+
+    // Delete existing suggestions for this campaign
     const { error: deleteError } = await supabase
       .from("campaign_influencer_suggestions")
       .delete()
       .eq("campaign_id", campaign_id);
 
     if (deleteError) {
-      console.warn("[HANDLER] Warning: Failed to delete old suggestions:", deleteError);
+      console.warn("[HANDLER] Failed to delete old suggestions:", deleteError);
     }
 
     // Insert new suggestions
-    const { error: insertError } = await supabase
-      .from("campaign_influencer_suggestions")
-      .insert(suggestionsToInsert);
+    if (influencersWithDates.length > 0) {
+      const suggestions = influencersWithDates.map(inf => ({
+        campaign_id: campaign_id,
+        influencer_id: inf.id,
+        match_score: inf.match_score,
+        name: inf.display_name,
+        city_served: inf.matched_city,
+        platform: inf.primary_platforms?.[0] || 'TikTok',
+        content_type: inf.content_type || inf.category,
+        min_price: inf.min_price,
+        avg_views_val: inf.estimated_views,
+        type_label: inf.computed_type_label,
+        selected: true,
+        scheduled_date: inf.scheduled_date,
+        history_type: inf.history_type,
+        history_price_cat: inf.history_price_cat,
+      }));
 
-    if (insertError) {
-      console.error("[HANDLER] Insert error:", insertError);
-      throw new Error(`Failed to save suggestions: ${insertError.message}`);
+      const { error: insertError } = await supabase
+        .from("campaign_influencer_suggestions")
+        .insert(suggestions);
+
+      if (insertError) {
+        console.error("[HANDLER] Failed to insert suggestions:", insertError);
+        throw new Error(`Failed to save suggestions: ${insertError.message}`);
+      }
     }
 
-    console.log(`[HANDLER] Successfully saved ${suggestionsToInsert.length} suggestions`);
-
-    // Update campaign with strategy summary
+    // Update campaign status and budget summary
     const { error: updateError } = await supabase
       .from("campaigns")
-      .update({ 
-        strategy_summary: strategySummary,
-        algorithm_version: "v2.1-improved-city-matching"
+      .update({
+        status: "plan_ready",
+        budget_summary: budgetSummary,
+        algorithm_version: "v2.0",
+        updated_at: new Date().toISOString(),
       })
       .eq("id", campaign_id);
 
     if (updateError) {
-      console.warn("[HANDLER] Warning: Failed to update campaign:", updateError);
+      console.warn("[HANDLER] Failed to update campaign:", updateError);
     }
 
+    console.log("[HANDLER] Matching completed successfully");
+
     return new Response(
-      JSON.stringify({ 
-        success: true, 
-        suggestions_count: suggestionsToInsert.length,
-        strategy: strategySummary,
-        message: "Influencer matching completed successfully"
+      JSON.stringify({
+        success: true,
+        campaign_id: campaign_id,
+        matched_count: matchedInfluencers.length,
+        budget_summary: budgetSummary,
+        suggestions: influencersWithDates.map(inf => ({
+          influencer_id: inf.id,
+          name: inf.display_name,
+          match_score: inf.match_score,
+          type_label: inf.computed_type_label,
+          min_price: inf.min_price,
+          scheduled_date: inf.scheduled_date,
+        })),
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
@@ -791,14 +742,11 @@ Deno.serve(async (req: Request) => {
   } catch (error) {
     console.error("[HANDLER] Error:", error);
     return new Response(
-      JSON.stringify({ 
-        error: error instanceof Error ? error.message : "Unknown error occurred",
-        success: false
+      JSON.stringify({
+        success: false,
+        error: error instanceof Error ? error.message : "Unknown error",
       }),
-      {
-        status: 500,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      }
+      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }
 });

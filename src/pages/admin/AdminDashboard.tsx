@@ -2,7 +2,7 @@ import { AdminLayout } from '@/components/admin/AdminLayout';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { useNavigate } from 'react-router-dom';
-import { Users, Megaphone, Code } from 'lucide-react';
+import { Users, Megaphone, Code, DollarSign } from 'lucide-react';
 
 export default function AdminDashboard() {
   const navigate = useNavigate();
@@ -25,6 +25,15 @@ export default function AdminDashboard() {
       icon: Megaphone,
       path: '/admin/campaigns',
       color: 'bg-green-500',
+    },
+    {
+      title: 'Financial Management',
+      titleAr: 'الإدارة المالية',
+      description: 'Track influencer payments and content approvals',
+      descriptionAr: 'تتبع مدفوعات المؤثرين والموافقات على المحتوى',
+      icon: DollarSign,
+      path: '/admin/financial',
+      color: 'bg-amber-500',
     },
     {
       title: 'Developer Tracking',

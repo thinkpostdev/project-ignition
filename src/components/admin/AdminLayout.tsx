@@ -8,7 +8,8 @@ import {
   Code, 
   LogOut,
   Menu,
-  LayoutDashboard
+  LayoutDashboard,
+  DollarSign
 } from 'lucide-react';
 import { useState } from 'react';
 import { cn } from '@/lib/utils';
@@ -32,6 +33,11 @@ const navItems = [
     title: 'Campaigns',
     href: '/admin/campaigns',
     icon: Megaphone,
+  },
+  {
+    title: 'Financial',
+    href: '/admin/financial',
+    icon: DollarSign,
   },
   {
     title: 'Developer Tracking',

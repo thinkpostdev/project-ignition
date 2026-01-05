@@ -35,6 +35,8 @@ interface InfluencerProfile {
   full_name: string | null;
   phone: string | null;
   user_email: string | null;
+  min_price: number | null;
+  max_price: number | null;
 }
 
 type FilterStatus = 'all' | 'pending' | 'approved';
@@ -46,6 +48,7 @@ export default function InfluencersApproval() {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState<FilterStatus>('all');
   const [approvingIds, setApprovingIds] = useState<Set<string>>(new Set());
+  const [savingPriceIds, setSavingPriceIds] = useState<Set<string>>(new Set());
   const { toast } = useToast();
 
   useEffect(() => {
@@ -95,6 +98,8 @@ export default function InfluencersApproval() {
         full_name: profileMap.get(profile.user_id)?.full_name || null,
         phone: profileMap.get(profile.user_id)?.phone || null,
         user_email: null,
+        min_price: profile.min_price,
+        max_price: profile.max_price,
       })) || [];
 
       setInfluencers(transformedData);
@@ -174,6 +179,52 @@ export default function InfluencersApproval() {
     }
   };
 
+  const handlePriceChange = async (influencerId: string, field: 'min_price' | 'max_price', value: string) => {
+    const numValue = value === '' ? null : parseFloat(value);
+    
+    // Update local state immediately for responsive UI
+    setInfluencers(prev =>
+      prev.map(inf =>
+        inf.id === influencerId ? { ...inf, [field]: numValue } : inf
+      )
+    );
+  };
+
+  const handlePriceSave = async (influencerId: string, field: 'min_price' | 'max_price', value: string) => {
+    const numValue = value === '' ? null : parseFloat(value);
+    
+    try {
+      setSavingPriceIds(prev => new Set(prev).add(`${influencerId}-${field}`));
+
+      const { error } = await supabase
+        .from('influencer_profiles')
+        .update({ [field]: numValue })
+        .eq('id', influencerId);
+
+      if (error) throw error;
+
+      toast({
+        title: 'Success',
+        description: `${field === 'min_price' ? 'Minimum' : 'Maximum'} price updated`,
+      });
+    } catch (error) {
+      console.error('Error updating price:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to update price',
+        variant: 'destructive',
+      });
+      // Revert on error
+      fetchInfluencers();
+    } finally {
+      setSavingPriceIds(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(`${influencerId}-${field}`);
+        return newSet;
+      });
+    }
+  };
+
   if (loading) {
     return (
       <AdminLayout>
@@ -224,6 +275,8 @@ export default function InfluencersApproval() {
                 <TableHead>Phone</TableHead>
                 <TableHead>Email</TableHead>
                 <TableHead>Social Handles</TableHead>
+                <TableHead>Min Price (SAR)</TableHead>
+                <TableHead>Max Price (SAR)</TableHead>
                 <TableHead>Registration Date</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead>Agreement</TableHead>
@@ -233,7 +286,7 @@ export default function InfluencersApproval() {
             <TableBody>
               {filteredInfluencers.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={8} className="text-center py-8 text-gray-500">
+                  <TableCell colSpan={10} className="text-center py-8 text-gray-500">
                     No influencers found
                   </TableCell>
                 </TableRow>
@@ -257,6 +310,30 @@ export default function InfluencersApproval() {
                           <div className="text-gray-600">SC: @{influencer.snapchat_username}</div>
                         )}
                       </div>
+                    </TableCell>
+                    <TableCell>
+                      <Input
+                        type="number"
+                        min="0"
+                        value={influencer.min_price ?? ''}
+                        onChange={(e) => handlePriceChange(influencer.id, 'min_price', e.target.value)}
+                        onBlur={(e) => handlePriceSave(influencer.id, 'min_price', e.target.value)}
+                        className="w-24 h-8 text-sm"
+                        placeholder="0"
+                        disabled={savingPriceIds.has(`${influencer.id}-min_price`)}
+                      />
+                    </TableCell>
+                    <TableCell>
+                      <Input
+                        type="number"
+                        min="0"
+                        value={influencer.max_price ?? ''}
+                        onChange={(e) => handlePriceChange(influencer.id, 'max_price', e.target.value)}
+                        onBlur={(e) => handlePriceSave(influencer.id, 'max_price', e.target.value)}
+                        className="w-24 h-8 text-sm"
+                        placeholder="0"
+                        disabled={savingPriceIds.has(`${influencer.id}-max_price`)}
+                      />
                     </TableCell>
                     <TableCell>
                       {format(new Date(influencer.created_at), 'MMM d, yyyy')}

@@ -367,8 +367,8 @@ export default function FinancialManagement() {
                         <TableCell className="text-sm text-gray-600">
                           {row.influencer_phone || 'N/A'}
                         </TableCell>
-                        <TableCell className="font-mono text-xs text-gray-500">
-                          {row.campaign_id?.slice(0, 8)}...
+                        <TableCell className="font-mono text-xs text-gray-500 break-all">
+                          {row.campaign_id || 'N/A'}
                         </TableCell>
                         <TableCell>
                           {row.has_uploaded_link ? (
@@ -386,21 +386,27 @@ export default function FinancialManagement() {
                           )}
                         </TableCell>
                         <TableCell>
-                          <Select
-                            value={row.proof_status || 'pending_submission'}
-                            onValueChange={(value) => handleApprovalStatusChange(row.invitation_id, value)}
-                            disabled={updatingApproval === row.invitation_id}
-                          >
-                            <SelectTrigger className="w-40 h-8 text-xs">
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="pending_submission">Pending Upload</SelectItem>
-                              <SelectItem value="submitted">Submitted</SelectItem>
-                              <SelectItem value="approved">Approved</SelectItem>
-                              <SelectItem value="rejected">Rejected</SelectItem>
-                            </SelectContent>
-                          </Select>
+                          <div className="flex items-center gap-2">
+                            <span className={`flex items-center gap-1 ${approvalStatus.color}`}>
+                              {approvalStatus.icon}
+                              <span className="text-sm">{approvalStatus.label}</span>
+                            </span>
+                            <Select
+                              value={row.proof_status || 'pending_submission'}
+                              onValueChange={(value) => handleApprovalStatusChange(row.invitation_id, value)}
+                              disabled={updatingApproval === row.invitation_id}
+                            >
+                              <SelectTrigger className="w-24 h-7 text-xs">
+                                <SelectValue placeholder="Change" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="pending_submission">Pending Upload</SelectItem>
+                                <SelectItem value="submitted">Submitted</SelectItem>
+                                <SelectItem value="approved">Approved</SelectItem>
+                                <SelectItem value="rejected">Rejected</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
                         </TableCell>
                         <TableCell className="font-semibold">
                           {row.amount_to_pay ? row.amount_to_pay.toLocaleString() : 'N/A'}

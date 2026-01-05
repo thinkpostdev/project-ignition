@@ -25,6 +25,7 @@ import AdminDashboard from './pages/admin/AdminDashboard';
 import InfluencersApproval from './pages/admin/InfluencersApproval';
 import CampaignsManagement from './pages/admin/CampaignsManagement';
 import DeveloperTracking from './pages/admin/DeveloperTracking';
+import FinancialManagement from './pages/admin/FinancialManagement';
 
 const queryClient = new QueryClient();
 
@@ -121,6 +122,14 @@ const App = () => (
               element={
                 <AdminRoute>
                   <DeveloperTracking />
+                </AdminRoute>
+              } 
+            />
+            <Route 
+              path="/admin/financial" 
+              element={
+                <AdminRoute>
+                  <FinancialManagement />
                 </AdminRoute>
               } 
             />

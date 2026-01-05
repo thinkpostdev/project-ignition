@@ -63,29 +63,51 @@ export default function InfluencersApproval() {
     try {
       setLoading(true);
       
-      // Fetch influencer profiles
+      // Use admin RPC function to get influencer data with emails
+      const { data: adminData, error: adminError } = await supabase
+        .rpc('get_admin_influencer_data');
+
+      if (adminError) throw adminError;
+
+      // Fetch additional data from influencer_profiles (agreement_accepted)
       const { data: profilesData, error: profilesError } = await supabase
         .from('influencer_profiles')
-        .select('*')
+        .select('id, agreement_accepted')
         .order('created_at', { ascending: false });
 
       if (profilesError) throw profilesError;
 
-      // Fetch profiles to get full names and phone numbers
-      const userIds = profilesData?.map(p => p.user_id) || [];
+      // Fetch profiles to get phone numbers
+      const userIds = adminData?.map((p: { user_id: string }) => p.user_id) || [];
       
       const { data: profilesInfo } = await supabase
         .from('profiles')
-        .select('id, full_name, phone')
+        .select('id, phone')
         .in('id', userIds);
 
-      // Create a map of user_id -> profile info
-      const profileMap = new Map(
-        profilesInfo?.map(p => [p.id, { full_name: p.full_name, phone: p.phone }]) || []
+      // Create maps for quick lookup
+      const agreementMap = new Map(
+        profilesData?.map(p => [p.id, p.agreement_accepted]) || []
+      );
+      const phoneMap = new Map(
+        profilesInfo?.map(p => [p.id, p.phone]) || []
       );
 
       // Transform data to match expected interface
-      const transformedData: InfluencerProfile[] = profilesData?.map(profile => ({
+      const transformedData: InfluencerProfile[] = adminData?.map((profile: {
+        id: string;
+        user_id: string;
+        display_name: string | null;
+        instagram_handle: string | null;
+        tiktok_username: string | null;
+        snapchat_username: string | null;
+        is_approved: boolean | null;
+        created_at: string;
+        full_name: string | null;
+        user_email: string | null;
+        min_price: number | null;
+        max_price: number | null;
+      }) => ({
         id: profile.id,
         user_id: profile.user_id,
         display_name: profile.display_name,
@@ -93,14 +115,17 @@ export default function InfluencersApproval() {
         tiktok_username: profile.tiktok_username,
         snapchat_username: profile.snapchat_username,
         is_approved: profile.is_approved,
-        agreement_accepted: profile.agreement_accepted,
+        agreement_accepted: agreementMap.get(profile.id) || null,
         created_at: profile.created_at,
-        full_name: profileMap.get(profile.user_id)?.full_name || null,
-        phone: profileMap.get(profile.user_id)?.phone || null,
-        user_email: null,
+        full_name: profile.full_name,
+        phone: phoneMap.get(profile.user_id) || null,
+        user_email: profile.user_email,
         min_price: profile.min_price,
         max_price: profile.max_price,
       })) || [];
+
+      // Sort by created_at descending
+      transformedData.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
 
       setInfluencers(transformedData);
     } catch (error) {

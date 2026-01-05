@@ -15,7 +15,7 @@ import { LanguageSwitcher } from '@/components/LanguageSwitcher';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
-import { ArrowLeft, Save, User, Lock } from 'lucide-react';
+import { ArrowLeft, Save, User, Lock, Building2 } from 'lucide-react';
 import ChangePassword from './ChangePassword';
 
 const SAUDI_CITIES = [
@@ -61,6 +61,8 @@ const InfluencerProfile = () => {
   const [saving, setSaving] = useState(false);
   const [selectedCities, setSelectedCities] = useState<string[]>([]);
   const [selectedPlatforms, setSelectedPlatforms] = useState<string[]>([]);
+  const [bankName, setBankName] = useState('');
+  const [iban, setIban] = useState('');
 
   const form = useForm<ProfileData>({
     resolver: zodResolver(profileSchema),
@@ -99,6 +101,10 @@ const InfluencerProfile = () => {
       const platforms = profile.primary_platforms || [];
       setSelectedCities(cities);
       setSelectedPlatforms(platforms);
+      
+      // Set bank info
+      setBankName(profile.bank_name || '');
+      setIban(profile.iban || '');
 
       // Determine collaboration type
       const collaborationType = profile.accept_paid ? 'paid' : 'hospitality';
@@ -130,6 +136,15 @@ const InfluencerProfile = () => {
   };
 
   const onSubmit = async (data: ProfileData) => {
+    // Validate IBAN if provided
+    if (iban.trim()) {
+      const cleanIban = iban.replace(/\s/g, '').toUpperCase();
+      if (!cleanIban.startsWith('SA') || cleanIban.length !== 24) {
+        toast.error('رقم الآيبان غير صالح. يجب أن يبدأ بـ SA ويتكون من 24 حرف');
+        return;
+      }
+    }
+    
     setSaving(true);
     try {
       const { error } = await supabase
@@ -151,6 +166,8 @@ const InfluencerProfile = () => {
           accept_paid: data.collaboration_type === 'paid',
           min_price: data.min_price,
           max_price: data.max_price,
+          bank_name: bankName.trim() || null,
+          iban: iban.trim() ? iban.replace(/\s/g, '').toUpperCase() : null,
           updated_at: new Date().toISOString(),
         })
         .eq('user_id', user?.id);
@@ -495,6 +512,43 @@ const InfluencerProfile = () => {
                       </div>
                     </div>
                   )}
+                </div>
+
+                {/* Bank Info Section */}
+                <div className="space-y-6">
+                  <h3 className="text-lg font-semibold border-b pb-2 flex items-center gap-2">
+                    <Building2 className="h-5 w-5" />
+                    معلومات الحساب البنكي
+                  </h3>
+                  <p className="text-sm text-muted-foreground">
+                    لاستلام أتعابك، يرجى إدخال معلومات حسابك البنكي
+                  </p>
+                  
+                  <div className="grid md:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="bank_name">اسم البنك</Label>
+                      <Input
+                        id="bank_name"
+                        value={bankName}
+                        onChange={(e) => setBankName(e.target.value)}
+                        placeholder="مثال: الراجحي، الأهلي، سامبا..."
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="iban">رقم الآيبان (IBAN)</Label>
+                      <Input
+                        id="iban"
+                        value={iban}
+                        onChange={(e) => setIban(e.target.value)}
+                        placeholder="SA0000000000000000000000"
+                        className="font-mono"
+                        dir="ltr"
+                      />
+                      <p className="text-xs text-muted-foreground">
+                        رقم الآيبان السعودي يبدأ بـ SA ويتكون من 24 حرف
+                      </p>
+                    </div>
+                  </div>
                 </div>
 
                 <div className="flex gap-3 pt-4">

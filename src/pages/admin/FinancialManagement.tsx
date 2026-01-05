@@ -26,7 +26,7 @@ import {
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, Search, ExternalLink, CheckCircle, Clock, XCircle } from 'lucide-react';
+import { Loader2, Search, ExternalLink, CheckCircle, Clock, XCircle, Building2 } from 'lucide-react';
 import { format, differenceInHours } from 'date-fns';
 
 interface FinancialRow {
@@ -46,6 +46,11 @@ interface FinancialRow {
   link_approved_at: string | null;
 }
 
+interface BankInfo {
+  bank_name: string | null;
+  iban: string | null;
+}
+
 type ProofFilter = 'all' | 'pending_upload' | 'submitted' | 'approved' | 'pending_payment';
 type PaymentFilter = 'all' | 'paid' | 'unpaid';
 
@@ -57,6 +62,8 @@ export default function FinancialManagement() {
   const [proofFilter, setProofFilter] = useState<ProofFilter>('all');
   const [paymentFilter, setPaymentFilter] = useState<PaymentFilter>('all');
   const [selectedProofUrl, setSelectedProofUrl] = useState<string | null>(null);
+  const [selectedBankInfo, setSelectedBankInfo] = useState<{ name: string; info: BankInfo | null } | null>(null);
+  const [bankInfoCache, setBankInfoCache] = useState<Record<string, BankInfo>>({});
   const [updatingPayment, setUpdatingPayment] = useState<string | null>(null);
   const [updatingApproval, setUpdatingApproval] = useState<string | null>(null);
   const { toast } = useToast();
@@ -255,6 +262,37 @@ export default function FinancialManagement() {
     }
   };
 
+  // Fetch bank info for an influencer
+  const fetchBankInfo = async (influencerId: string, influencerName: string | null) => {
+    // Check cache first
+    if (bankInfoCache[influencerId]) {
+      setSelectedBankInfo({ name: influencerName || 'N/A', info: bankInfoCache[influencerId] });
+      return;
+    }
+
+    try {
+      const { data, error } = await supabase
+        .from('influencer_profiles')
+        .select('bank_name, iban')
+        .eq('id', influencerId)
+        .single();
+
+      if (error) throw error;
+
+      const bankInfo: BankInfo = {
+        bank_name: data?.bank_name || null,
+        iban: data?.iban || null,
+      };
+
+      // Cache the result
+      setBankInfoCache(prev => ({ ...prev, [influencerId]: bankInfo }));
+      setSelectedBankInfo({ name: influencerName || 'N/A', info: bankInfo });
+    } catch (error) {
+      console.error('Error fetching bank info:', error);
+      setSelectedBankInfo({ name: influencerName || 'N/A', info: null });
+    }
+  };
+
   // Calculate summary stats
   const totalPending = filteredData.filter(row => isApproved(row) && !row.payment_completed).length;
   const totalPaid = filteredData.filter(row => row.payment_completed).length;
@@ -343,6 +381,7 @@ export default function FinancialManagement() {
                   <TableHead>Campaign ID</TableHead>
                   <TableHead>Content Proof</TableHead>
                   <TableHead>Approval Status</TableHead>
+                  <TableHead>Bank Info</TableHead>
                   <TableHead>Fees (SAR)</TableHead>
                   <TableHead className="text-center">Paid</TableHead>
                 </TableRow>
@@ -350,7 +389,7 @@ export default function FinancialManagement() {
               <TableBody>
                 {filteredData.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={7} className="text-center py-8 text-gray-500">
+                    <TableCell colSpan={8} className="text-center py-8 text-gray-500">
                       No financial records found
                     </TableCell>
                   </TableRow>
@@ -408,6 +447,17 @@ export default function FinancialManagement() {
                             </Select>
                           </div>
                         </TableCell>
+                        <TableCell>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="text-primary hover:text-primary/80 p-0 h-auto"
+                            onClick={() => fetchBankInfo(row.influencer_id, row.influencer_name)}
+                          >
+                            <Building2 className="h-4 w-4 mr-1" />
+                            View
+                          </Button>
+                        </TableCell>
                         <TableCell className="font-semibold">
                           {row.amount_to_pay ? row.amount_to_pay.toLocaleString() : 'N/A'}
                         </TableCell>
@@ -462,6 +512,41 @@ export default function FinancialManagement() {
             >
               Open in New Tab
             </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Bank Info Dialog */}
+      <Dialog open={!!selectedBankInfo} onOpenChange={() => setSelectedBankInfo(null)}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Building2 className="h-5 w-5" />
+              Bank Information
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="text-sm text-gray-600">
+              Influencer: <span className="font-medium text-gray-900">{selectedBankInfo?.name}</span>
+            </div>
+            {selectedBankInfo?.info?.bank_name || selectedBankInfo?.info?.iban ? (
+              <div className="p-4 bg-gray-50 rounded-lg space-y-3">
+                <div>
+                  <div className="text-xs text-gray-500 uppercase">Bank Name</div>
+                  <div className="font-medium">{selectedBankInfo?.info?.bank_name || 'Not provided'}</div>
+                </div>
+                <div>
+                  <div className="text-xs text-gray-500 uppercase">IBAN</div>
+                  <div className="font-mono text-sm">{selectedBankInfo?.info?.iban || 'Not provided'}</div>
+                </div>
+              </div>
+            ) : (
+              <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+                <p className="text-yellow-700 text-sm">
+                  Bank information not yet provided by the influencer.
+                </p>
+              </div>
+            )}
           </div>
         </DialogContent>
       </Dialog>

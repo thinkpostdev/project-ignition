@@ -14,6 +14,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { Database } from '@/integrations/supabase/types';
 import { AgreementPopup } from '@/components/AgreementPopup';
+import { BankInfoPopup } from '@/components/BankInfoPopup';
 import FloatingWhatsApp from '@/components/FloatingWhatsApp';
 
 type ProofStatus = Database['public']['Enums']['proof_status'];
@@ -71,6 +72,7 @@ const InfluencerDashboard = () => {
   const [proofUrl, setProofUrl] = useState('');
   const [submittingProof, setSubmittingProof] = useState(false);
   const [agreementDialogOpen, setAgreementDialogOpen] = useState(false);
+  const [bankInfoDialogOpen, setBankInfoDialogOpen] = useState(false);
   const [checkingAgreement, setCheckingAgreement] = useState(true);
 
   useEffect(() => {
@@ -145,11 +147,21 @@ const InfluencerDashboard = () => {
       setInfluencerProfile({ ...influencerProfile, agreement_accepted: true });
       setAgreementDialogOpen(false);
       toast.success('تم قبول الاتفاقية بنجاح');
+      
+      // Check if bank info is missing, show bank info popup
+      if (!influencerProfile.bank_name || !influencerProfile.iban) {
+        setBankInfoDialogOpen(true);
+      }
     } catch (error) {
       console.error('Error accepting agreement:', error);
       toast.error('فشل حفظ الموافقة. يرجى المحاولة مرة أخرى');
       throw error;
     }
+  };
+
+  const handleBankInfoSuccess = () => {
+    // Refresh the profile to get updated bank info
+    checkInfluencerProfile();
   };
 
   const fetchProfile = async () => {
@@ -1155,6 +1167,16 @@ const InfluencerDashboard = () => {
       </div>
 
       <FloatingWhatsApp />
+
+      {/* Bank Info Popup */}
+      {influencerProfile && (
+        <BankInfoPopup
+          open={bankInfoDialogOpen}
+          onOpenChange={setBankInfoDialogOpen}
+          influencerProfileId={influencerProfile.id}
+          onSuccess={handleBankInfoSuccess}
+        />
+      )}
     </div>
   );
 };

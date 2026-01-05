@@ -410,6 +410,7 @@ export type Database = {
           avg_views_snapchat: Database["public"]["Enums"]["avg_range"] | null
           avg_views_tiktok: Database["public"]["Enums"]["avg_range"] | null
           avg_views_val: number | null
+          bank_name: string | null
           bio: string | null
           categories: string[] | null
           category: Database["public"]["Enums"]["influencer_category"] | null
@@ -424,6 +425,7 @@ export type Database = {
           history_category: string | null
           history_price_cat: string | null
           history_type: string | null
+          iban: string | null
           id: string
           instagram_handle: string | null
           is_approved: boolean | null
@@ -450,6 +452,7 @@ export type Database = {
           avg_views_snapchat?: Database["public"]["Enums"]["avg_range"] | null
           avg_views_tiktok?: Database["public"]["Enums"]["avg_range"] | null
           avg_views_val?: number | null
+          bank_name?: string | null
           bio?: string | null
           categories?: string[] | null
           category?: Database["public"]["Enums"]["influencer_category"] | null
@@ -464,6 +467,7 @@ export type Database = {
           history_category?: string | null
           history_price_cat?: string | null
           history_type?: string | null
+          iban?: string | null
           id?: string
           instagram_handle?: string | null
           is_approved?: boolean | null
@@ -490,6 +494,7 @@ export type Database = {
           avg_views_snapchat?: Database["public"]["Enums"]["avg_range"] | null
           avg_views_tiktok?: Database["public"]["Enums"]["avg_range"] | null
           avg_views_val?: number | null
+          bank_name?: string | null
           bio?: string | null
           categories?: string[] | null
           category?: Database["public"]["Enums"]["influencer_category"] | null
@@ -504,6 +509,7 @@ export type Database = {
           history_category?: string | null
           history_price_cat?: string | null
           history_type?: string | null
+          iban?: string | null
           id?: string
           instagram_handle?: string | null
           is_approved?: boolean | null

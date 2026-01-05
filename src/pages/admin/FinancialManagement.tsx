@@ -58,6 +58,7 @@ export default function FinancialManagement() {
   const [paymentFilter, setPaymentFilter] = useState<PaymentFilter>('all');
   const [selectedProofUrl, setSelectedProofUrl] = useState<string | null>(null);
   const [updatingPayment, setUpdatingPayment] = useState<string | null>(null);
+  const [updatingApproval, setUpdatingApproval] = useState<string | null>(null);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -77,7 +78,7 @@ export default function FinancialManagement() {
         .from('developer_tracking_view')
         .select('*')
         .eq('invitation_status', 'accepted')
-        .order('link_submitted_at', { ascending: false, nullsFirst: false });
+        .order('invitation_created_at', { ascending: false });
 
       if (error) throw error;
 
@@ -209,6 +210,51 @@ export default function FinancialManagement() {
     }
   };
 
+  const handleApprovalStatusChange = async (invitationId: string, newStatus: string) => {
+    try {
+      setUpdatingApproval(invitationId);
+      
+      const updateData: { proof_status: 'pending_submission' | 'submitted' | 'approved' | 'rejected'; proof_approved_at?: string | null } = {
+        proof_status: newStatus as 'pending_submission' | 'submitted' | 'approved' | 'rejected',
+      };
+      
+      // Set approval timestamp if approved
+      if (newStatus === 'approved') {
+        updateData.proof_approved_at = new Date().toISOString();
+      } else {
+        updateData.proof_approved_at = null;
+      }
+      
+      const { error } = await supabase
+        .from('influencer_invitations')
+        .update(updateData)
+        .eq('id', invitationId);
+
+      if (error) throw error;
+
+      // Update local state
+      setFinancialData(prev => prev.map(row => 
+        row.invitation_id === invitationId 
+          ? { ...row, proof_status: newStatus, owner_approved_link: newStatus === 'approved' }
+          : row
+      ));
+
+      toast({
+        title: 'Success',
+        description: `Approval status updated to ${newStatus}`,
+      });
+    } catch (error) {
+      console.error('Error updating approval status:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to update approval status',
+        variant: 'destructive',
+      });
+    } finally {
+      setUpdatingApproval(null);
+    }
+  };
+
   // Calculate summary stats
   const totalPending = filteredData.filter(row => isApproved(row) && !row.payment_completed).length;
   const totalPaid = filteredData.filter(row => row.payment_completed).length;
@@ -294,7 +340,7 @@ export default function FinancialManagement() {
                 <TableRow>
                   <TableHead>Influencer</TableHead>
                   <TableHead>Phone</TableHead>
-                  <TableHead>Campaign</TableHead>
+                  <TableHead>Campaign ID</TableHead>
                   <TableHead>Content Proof</TableHead>
                   <TableHead>Approval Status</TableHead>
                   <TableHead>Fees (SAR)</TableHead>
@@ -321,8 +367,8 @@ export default function FinancialManagement() {
                         <TableCell className="text-sm text-gray-600">
                           {row.influencer_phone || 'N/A'}
                         </TableCell>
-                        <TableCell className="max-w-xs truncate">
-                          {row.campaign_name || 'N/A'}
+                        <TableCell className="font-mono text-xs text-gray-500">
+                          {row.campaign_id?.slice(0, 8)}...
                         </TableCell>
                         <TableCell>
                           {row.has_uploaded_link ? (
@@ -340,10 +386,21 @@ export default function FinancialManagement() {
                           )}
                         </TableCell>
                         <TableCell>
-                          <div className={`flex items-center gap-1 ${approvalStatus.color}`}>
-                            {approvalStatus.icon}
-                            <span className="text-sm font-medium">{approvalStatus.label}</span>
-                          </div>
+                          <Select
+                            value={row.proof_status || 'pending_submission'}
+                            onValueChange={(value) => handleApprovalStatusChange(row.invitation_id, value)}
+                            disabled={updatingApproval === row.invitation_id}
+                          >
+                            <SelectTrigger className="w-40 h-8 text-xs">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="pending_submission">Pending Upload</SelectItem>
+                              <SelectItem value="submitted">Submitted</SelectItem>
+                              <SelectItem value="approved">Approved</SelectItem>
+                              <SelectItem value="rejected">Rejected</SelectItem>
+                            </SelectContent>
+                          </Select>
                         </TableCell>
                         <TableCell className="font-semibold">
                           {row.amount_to_pay ? row.amount_to_pay.toLocaleString() : 'N/A'}

@@ -30,7 +30,9 @@ import {
   MessageCircle,
   CreditCard,
   Trash2,
-  RefreshCw
+  RefreshCw,
+  Instagram,
+  User
 } from 'lucide-react';
 import { formatViewsCount } from '@/domain/matching';
 import type { MatchingSummary } from '@/domain/matching';
@@ -117,6 +119,13 @@ const CampaignDetail = () => {
   const [processingProof, setProcessingProof] = useState(false);
   const [paymentDialogOpen, setPaymentDialogOpen] = useState(false);
   const [pollingAttempts, setPollingAttempts] = useState(0);
+  const [selectedInfluencer, setSelectedInfluencer] = useState<CampaignSuggestion | null>(null);
+  const [influencerDetails, setInfluencerDetails] = useState<{
+    instagram_handle: string | null;
+    tiktok_username: string | null;
+    snapchat_username: string | null;
+  } | null>(null);
+  const [loadingInfluencerDetails, setLoadingInfluencerDetails] = useState(false);
 
   // Calculate actual payment amount (sum of pending influencers' prices + 20% service fee)
   const actualPaymentAmount = useMemo(() => {
@@ -333,6 +342,33 @@ const CampaignDetail = () => {
       setInvitations(invitationsWithProfiles as InvitationWithProof[]);
     } catch (error) {
       console.error('Error fetching invitations:', error);
+    }
+  };
+
+  const handleViewInfluencer = async (suggestion: CampaignSuggestion) => {
+    setSelectedInfluencer(suggestion);
+    setInfluencerDetails(null);
+    setLoadingInfluencerDetails(true);
+    
+    try {
+      const { data, error } = await supabase
+        .from('influencer_profiles')
+        .select('instagram_handle, tiktok_username, snapchat_username')
+        .eq('id', suggestion.influencer_id)
+        .single();
+
+      if (error) throw error;
+      
+      setInfluencerDetails({
+        instagram_handle: data?.instagram_handle || null,
+        tiktok_username: data?.tiktok_username || null,
+        snapchat_username: data?.snapchat_username || null,
+      });
+    } catch (error) {
+      console.error('Error fetching influencer details:', error);
+      toast.error('فشل تحميل بيانات المؤثر');
+    } finally {
+      setLoadingInfluencerDetails(false);
     }
   };
 
@@ -997,11 +1033,12 @@ const CampaignDetail = () => {
                 return (
                   <Card 
                     key={suggestion.id} 
-                    className={`p-5 hover:shadow-elevated transition-shadow ${
+                    className={`p-5 hover:shadow-elevated transition-shadow cursor-pointer ${
                       isHospitality ? 'border-amber-200 dark:border-amber-800/50' : ''
                     } ${
                       suggestion.invitation_status === 'declined' ? 'opacity-60 border-red-200 dark:border-red-800/50' : ''
                     }`}
+                    onClick={() => handleViewInfluencer(suggestion)}
                   >
                     <div className="flex items-start justify-between gap-4">
                       <div className="flex items-start gap-4 flex-1">
@@ -1611,6 +1648,157 @@ const CampaignDetail = () => {
                 {processingProof ? 'جاري الرفض...' : 'تأكيد الرفض'}
               </Button>
             </div>
+          </DialogContent>
+        </Dialog>
+
+        {/* Influencer Info Dialog */}
+        <Dialog open={selectedInfluencer !== null} onOpenChange={(open) => !open && setSelectedInfluencer(null)}>
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <User className="h-5 w-5" />
+                معلومات المؤثر
+              </DialogTitle>
+            </DialogHeader>
+            {selectedInfluencer && (
+              <div className="space-y-6 py-4">
+                {/* Influencer Name & Match Score */}
+                <div className="flex items-center gap-4">
+                  <div className={`h-16 w-16 rounded-full flex items-center justify-center text-white font-bold text-xl ${
+                    selectedInfluencer.type_label?.toLowerCase() === 'hospitality'
+                      ? 'bg-gradient-to-br from-amber-400 to-amber-600'
+                      : 'bg-gradient-to-br from-primary to-secondary'
+                  }`}>
+                    {selectedInfluencer.name?.charAt(0) || 'M'}
+                  </div>
+                  <div>
+                    <h3 className="text-xl font-bold">{selectedInfluencer.name || 'مؤثر'}</h3>
+                    <Badge 
+                      variant="outline" 
+                      className={`${getScoreColor(selectedInfluencer.match_score)} border-current mt-1`}
+                    >
+                      <TrendingUp className="h-3 w-3 me-1" />
+                      {selectedInfluencer.match_score?.toFixed(0)}% تطابق
+                    </Badge>
+                  </div>
+                </div>
+
+                {/* Social Media Accounts */}
+                <div className="space-y-3">
+                  <h4 className="text-sm font-semibold text-muted-foreground">حسابات التواصل الاجتماعي</h4>
+                  {loadingInfluencerDetails ? (
+                    <div className="flex items-center gap-2 text-muted-foreground">
+                      <RefreshCw className="h-4 w-4 animate-spin" />
+                      <span>جاري التحميل...</span>
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                      {influencerDetails?.instagram_handle && (
+                        <div className="flex items-center gap-2 text-sm">
+                          <Instagram className="h-4 w-4 text-pink-600" />
+                          <span className="font-medium">Instagram:</span>
+                          <a 
+                            href={`https://instagram.com/${influencerDetails.instagram_handle.replace('@', '')}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-primary hover:underline"
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            @{influencerDetails.instagram_handle.replace('@', '')}
+                          </a>
+                        </div>
+                      )}
+                      {influencerDetails?.tiktok_username && (
+                        <div className="flex items-center gap-2 text-sm">
+                          <svg className="h-4 w-4" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M19.59 6.69a4.83 4.83 0 0 1-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 0 1-5.2 1.74 2.89 2.89 0 0 1 2.31-4.64 2.93 2.93 0 0 1 .88.13V9.4a6.84 6.84 0 0 0-1-.05A6.33 6.33 0 0 0 5 20.1a6.34 6.34 0 0 0 10.86-4.43v-7a8.16 8.16 0 0 0 4.77 1.52v-3.4a4.85 4.85 0 0 1-1-.1z"/>
+                          </svg>
+                          <span className="font-medium">TikTok:</span>
+                          <a 
+                            href={`https://tiktok.com/@${influencerDetails.tiktok_username.replace('@', '')}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-primary hover:underline"
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            @{influencerDetails.tiktok_username.replace('@', '')}
+                          </a>
+                        </div>
+                      )}
+                      {influencerDetails?.snapchat_username && (
+                        <div className="flex items-center gap-2 text-sm">
+                          <svg className="h-4 w-4 text-yellow-500" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M12.206.793c.99 0 4.347.276 5.93 3.821.529 1.193.403 3.219.299 4.847l-.003.06c-.012.18-.022.345-.03.51.075.045.203.09.401.09.3-.016.659-.12 1.033-.301a.32.32 0 0 1 .114-.023c.193 0 .355.104.437.263.096.189.068.394-.075.545-.36.38-.858.716-1.441.983-.115.052-.184.114-.224.183.078.38.268.818.469 1.287.154.362.32.753.454 1.152.065.188.057.37-.028.51-.086.142-.236.24-.419.27-.169.028-.347.049-.523.07-.26.028-.508.055-.748.106-.096.02-.182.093-.269.228-.264.41-.57.855-.971 1.196-.315.27-.661.453-1.067.527-.242.044-.495.069-.753.088-.387.027-.774.055-1.14.147-.348.087-.665.243-.955.393-.274.142-.545.281-.825.4-.313.138-.635.187-.99.138-.225-.031-.45-.092-.664-.181-.166-.069-.331-.15-.5-.242-.172-.092-.344-.191-.542-.267-.172-.068-.354-.113-.54-.15-.127-.026-.258-.043-.389-.057-.237-.025-.476-.043-.72-.077-.243-.035-.434-.157-.516-.317-.092-.182-.077-.402.04-.614a8.04 8.04 0 0 1 .553-.952c.256-.408.532-.846.727-1.296.11-.252.128-.461.053-.609-.138-.266-.548-.393-.938-.515-.067-.02-.135-.042-.2-.064-.64-.207-1.297-.44-1.71-.885-.128-.139-.176-.323-.124-.483.053-.167.188-.29.385-.345.107-.03.213-.036.293-.02.296.063.634.195.972.329.316.125.64.254.953.321.143.031.269-.02.365-.076-.026-.149-.047-.32-.067-.497-.093-.752-.211-1.898-.08-2.67.377-2.268 1.574-3.783 3.538-4.488a5.68 5.68 0 0 1 1.851-.315"/>
+                          </svg>
+                          <span className="font-medium">Snapchat:</span>
+                          <span>{influencerDetails.snapchat_username}</span>
+                        </div>
+                      )}
+                      {!influencerDetails?.instagram_handle && !influencerDetails?.tiktok_username && !influencerDetails?.snapchat_username && (
+                        <p className="text-sm text-muted-foreground">لا توجد حسابات مسجلة</p>
+                      )}
+                    </div>
+                  )}
+                </div>
+
+                {/* Expected Reach */}
+                <div className="space-y-2">
+                  <h4 className="text-sm font-semibold text-muted-foreground">الوصول المتوقع</h4>
+                  <div className="flex items-center gap-2 text-lg">
+                    <Eye className="h-5 w-5 text-blue-600" />
+                    <span className="font-bold">
+                      {selectedInfluencer.avg_views_val 
+                        ? formatViewsCount(selectedInfluencer.avg_views_val)
+                        : 'غير محدد'
+                      }
+                    </span>
+                    <span className="text-muted-foreground text-sm">مشاهدة متوقعة</span>
+                  </div>
+                </div>
+
+                {/* Price */}
+                <div className="space-y-2">
+                  <h4 className="text-sm font-semibold text-muted-foreground">السعر</h4>
+                  <div className="flex items-center gap-2">
+                    {selectedInfluencer.type_label?.toLowerCase() === 'hospitality' ? (
+                      <Badge className="bg-amber-100 text-amber-800 border-amber-200 text-lg py-1 px-3">
+                        <Gift className="h-4 w-4 me-2" />
+                        ضيافة (مجاني)
+                      </Badge>
+                    ) : (
+                      <div className="flex items-center gap-2 text-lg">
+                        <DollarSign className="h-5 w-5 text-emerald-600" />
+                        <span className="font-bold text-emerald-600">
+                          {selectedInfluencer.min_price?.toLocaleString() || 0} ر.س
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Additional Info */}
+                <div className="grid grid-cols-2 gap-4 pt-2 border-t">
+                  {selectedInfluencer.city_served && (
+                    <div>
+                      <p className="text-xs text-muted-foreground">المدينة</p>
+                      <p className="font-medium">{selectedInfluencer.city_served}</p>
+                    </div>
+                  )}
+                  {selectedInfluencer.content_type && (
+                    <div>
+                      <p className="text-xs text-muted-foreground">نوع المحتوى</p>
+                      <p className="font-medium">{selectedInfluencer.content_type}</p>
+                    </div>
+                  )}
+                  {selectedInfluencer.platform && (
+                    <div>
+                      <p className="text-xs text-muted-foreground">المنصة</p>
+                      <p className="font-medium">{selectedInfluencer.platform}</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
           </DialogContent>
         </Dialog>
       </div>

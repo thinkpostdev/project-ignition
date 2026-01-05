@@ -247,6 +247,7 @@ export default function CampaignsManagement() {
             <Table>
               <TableHeader>
                 <TableRow>
+                  <TableHead>Campaign ID</TableHead>
                   <TableHead>Title</TableHead>
                   <TableHead>Business</TableHead>
                   <TableHead>Status</TableHead>
@@ -259,13 +260,16 @@ export default function CampaignsManagement() {
               <TableBody>
                 {filteredCampaigns.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={7} className="text-center py-8 text-gray-500">
+                    <TableCell colSpan={8} className="text-center py-8 text-gray-500">
                       No campaigns found
                     </TableCell>
                   </TableRow>
                 ) : (
                   filteredCampaigns.map((campaign) => (
                     <TableRow key={campaign.id}>
+                      <TableCell className="font-mono text-xs text-gray-500">
+                        {campaign.id.slice(0, 8)}...
+                      </TableCell>
                       <TableCell className="font-medium max-w-xs truncate">
                         {campaign.title}
                       </TableCell>

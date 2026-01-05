@@ -1175,6 +1175,7 @@ const CampaignDetail = () => {
                                 type="date"
                                 value={getEffectiveDate(suggestion) || ''}
                                 onChange={(e) => handleDateChange(suggestion.id, e.target.value)}
+                                onClick={(e) => e.stopPropagation()}
                                 className="text-sm border rounded px-2 py-1 focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
                                 min={getMinimumDate()}
                               />

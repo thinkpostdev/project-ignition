@@ -18,9 +18,20 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
-import { CheckCircle, Loader2, Search } from 'lucide-react';
+import { CheckCircle, Loader2, Search, Building2 } from 'lucide-react';
 import { format } from 'date-fns';
+
+interface BankInfo {
+  bank_name: string | null;
+  iban: string | null;
+}
 
 interface InfluencerProfile {
   id: string;
@@ -49,6 +60,8 @@ export default function InfluencersApproval() {
   const [filterStatus, setFilterStatus] = useState<FilterStatus>('all');
   const [approvingIds, setApprovingIds] = useState<Set<string>>(new Set());
   const [savingPriceIds, setSavingPriceIds] = useState<Set<string>>(new Set());
+  const [selectedBankInfo, setSelectedBankInfo] = useState<BankInfo | null>(null);
+  const [bankInfoCache, setBankInfoCache] = useState<Map<string, BankInfo>>(new Map());
   const { toast } = useToast();
 
   useEffect(() => {
@@ -250,6 +263,39 @@ export default function InfluencersApproval() {
     }
   };
 
+  const fetchBankInfo = async (influencerId: string) => {
+    // Check cache first
+    if (bankInfoCache.has(influencerId)) {
+      setSelectedBankInfo(bankInfoCache.get(influencerId)!);
+      return;
+    }
+
+    try {
+      const { data, error } = await supabase
+        .from('influencer_profiles')
+        .select('bank_name, iban')
+        .eq('id', influencerId)
+        .single();
+
+      if (error) throw error;
+
+      const bankInfo: BankInfo = {
+        bank_name: data?.bank_name || null,
+        iban: data?.iban || null,
+      };
+
+      setBankInfoCache(prev => new Map(prev).set(influencerId, bankInfo));
+      setSelectedBankInfo(bankInfo);
+    } catch (error) {
+      console.error('Error fetching bank info:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to load bank info',
+        variant: 'destructive',
+      });
+    }
+  };
+
   if (loading) {
     return (
       <AdminLayout>
@@ -303,6 +349,7 @@ export default function InfluencersApproval() {
                 <TableHead>Min Price (SAR)</TableHead>
                 <TableHead>Max Price (SAR)</TableHead>
                 <TableHead>Registration Date</TableHead>
+                <TableHead>Bank Info</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead>Agreement</TableHead>
                 <TableHead className="text-right">Actions</TableHead>
@@ -364,6 +411,17 @@ export default function InfluencersApproval() {
                       {format(new Date(influencer.created_at), 'MMM d, yyyy')}
                     </TableCell>
                     <TableCell>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => fetchBankInfo(influencer.id)}
+                        className="flex items-center gap-1"
+                      >
+                        <Building2 className="h-3 w-3" />
+                        View
+                      </Button>
+                    </TableCell>
+                    <TableCell>
                       {influencer.is_approved ? (
                         <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-700">
                           <CheckCircle className="h-3 w-3" />
@@ -416,6 +474,28 @@ export default function InfluencersApproval() {
         <div className="text-sm text-gray-600">
           Showing {filteredInfluencers.length} of {influencers.length} influencers
         </div>
+
+        {/* Bank Info Dialog */}
+        <Dialog open={selectedBankInfo !== null} onOpenChange={(open) => !open && setSelectedBankInfo(null)}>
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <Building2 className="h-5 w-5" />
+                Bank Information
+              </DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4 py-4">
+              <div>
+                <label className="text-sm font-medium text-muted-foreground">اسم البنك (Bank Name)</label>
+                <p className="mt-1 text-lg">{selectedBankInfo?.bank_name || 'Not provided'}</p>
+              </div>
+              <div>
+                <label className="text-sm font-medium text-muted-foreground">رقم الآيبان (IBAN)</label>
+                <p className="mt-1 text-lg font-mono">{selectedBankInfo?.iban || 'Not provided'}</p>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
       </div>
     </AdminLayout>
   );

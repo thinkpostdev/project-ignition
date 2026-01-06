@@ -1,4 +1,5 @@
 import { useTranslation } from 'react-i18next';
+import FloatingWhatsApp from '@/components/FloatingWhatsApp';
 import { useState, useEffect, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -1803,6 +1804,7 @@ const CampaignDetail = () => {
           </DialogContent>
         </Dialog>
       </div>
+      <FloatingWhatsApp />
     </div>
   );
 };

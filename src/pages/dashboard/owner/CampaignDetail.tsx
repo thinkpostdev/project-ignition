@@ -1214,8 +1214,8 @@ const CampaignDetail = () => {
                         </div>
                       </div>
                       
-                      {/* Delete button - only show before payment (no invitation status) */}
-                      {!suggestion.invitation_status && (
+                      {/* Delete button - only show before payment is submitted */}
+                      {!suggestion.invitation_status && !campaign?.payment_submitted_at && (
                         <Button
                           variant="ghost"
                           size="icon"

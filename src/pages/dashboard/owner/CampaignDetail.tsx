@@ -1043,7 +1043,7 @@ const CampaignDetail = () => {
           {/* Red Notice */}
           <div className="mb-6 p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
             <p className="text-sm text-red-700 dark:text-red-300 font-medium leading-relaxed">
-              <strong className="text-red-800 dark:text-red-200">ملاحظة:</strong>ملاحظة: في حال عدم قبول الدعوة من المؤثّر، تُرسل الدعوة لمؤثر بديل.</p>
+              <strong className="text-red-800 dark:text-red-200">ملاحظة:</strong>في حال عدم قبول الدعوة من المؤثّر، تُرسل الدعوة لمؤثر بديل.</p>
           </div>
 
           {suggestions.length > 0 ? (

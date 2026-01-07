@@ -594,7 +594,7 @@ const InfluencerDashboard = () => {
       <header className="bg-background border-b sticky top-0 z-50">
         <div className="container mx-auto px-3 sm:px-4 h-14 sm:h-16 flex items-center justify-between">
           <h1 className="text-base sm:text-xl font-bold bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
-            InfluencerHub
+            InfluencersHub
           </h1>
           <div className="flex items-center gap-1.5 sm:gap-3">
             <Button variant="outline" size="sm" className="text-xs sm:text-sm px-2 sm:px-3" asChild>

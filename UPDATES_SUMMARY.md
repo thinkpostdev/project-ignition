@@ -2,7 +2,7 @@
 
 ## Date: December 13, 2025
 
-This document summarizes all the major updates made to the InfluencerHub platform.
+This document summarizes all the major updates made to the InfluencersHub platform.
 
 ---
 

@@ -16,7 +16,7 @@ const Landing = () => {
       <header className="fixed top-0 left-0 right-0 z-50 bg-background/80 backdrop-blur-md border-b">
         <div className="container mx-auto px-3 sm:px-4 h-14 sm:h-16 flex items-center justify-between">
           <h1 className="text-base sm:text-xl font-bold bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
-            InfluencerHub
+            InfluencersHub
           </h1>
           <div className="flex items-center gap-1.5 sm:gap-3">
             <LanguageSwitcher />
@@ -134,7 +134,7 @@ const Landing = () => {
       {/* Footer */}
       <footer className="py-12 border-t">
         <div className="container mx-auto px-4 text-center text-muted-foreground">
-          <p>© 2024 InfluencerHub. All rights reserved.</p>
+          <p>© 2024 InfluencersHub. All rights reserved.</p>
         </div>
       </footer>
 

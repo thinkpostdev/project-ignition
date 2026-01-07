@@ -127,6 +127,7 @@ const CampaignDetail = () => {
     snapchat_username: string | null;
   } | null>(null);
   const [loadingInfluencerDetails, setLoadingInfluencerDetails] = useState(false);
+  const [deletingSuggestionId, setDeletingSuggestionId] = useState<string | null>(null);
 
   // Calculate actual payment amount (sum of pending influencers' prices + 20% service fee)
   const actualPaymentAmount = useMemo(() => {
@@ -370,6 +371,29 @@ const CampaignDetail = () => {
       toast.error('فشل تحميل بيانات المؤثر');
     } finally {
       setLoadingInfluencerDetails(false);
+    }
+  };
+
+  const handleDeleteSuggestion = async (suggestionId: string, e: React.MouseEvent) => {
+    e.stopPropagation(); // Prevent opening the influencer details dialog
+    
+    setDeletingSuggestionId(suggestionId);
+    try {
+      const { error } = await supabase
+        .from('campaign_influencer_suggestions')
+        .delete()
+        .eq('id', suggestionId);
+
+      if (error) throw error;
+
+      // Remove from local state
+      setSuggestions(prev => prev.filter(s => s.id !== suggestionId));
+      toast.success('تم حذف المؤثر من القائمة');
+    } catch (error) {
+      console.error('Error deleting suggestion:', error);
+      toast.error('فشل حذف المؤثر');
+    } finally {
+      setDeletingSuggestionId(null);
     }
   };
 
@@ -1190,7 +1214,22 @@ const CampaignDetail = () => {
                         </div>
                       </div>
                       
-                      {/* Status badge moved to inline with name */}
+                      {/* Delete button - only show before payment (no invitation status) */}
+                      {!suggestion.invitation_status && (
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="shrink-0 text-red-500 hover:text-red-700 hover:bg-red-50"
+                          onClick={(e) => handleDeleteSuggestion(suggestion.id, e)}
+                          disabled={deletingSuggestionId === suggestion.id}
+                        >
+                          {deletingSuggestionId === suggestion.id ? (
+                            <RefreshCw className="h-5 w-5 animate-spin" />
+                          ) : (
+                            <Trash2 className="h-5 w-5" />
+                          )}
+                        </Button>
+                      )}
                     </div>
                   </Card>
                 );

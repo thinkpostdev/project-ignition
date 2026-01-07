@@ -455,7 +455,7 @@ const InfluencerDashboard = () => {
       return (
         <Badge variant="outline" className="bg-gray-100 text-gray-700 border-gray-300">
           <Clock className="h-3 w-3 me-1" />
-          بانتظار الرفع
+          بانتظار رفع المحتوى
         </Badge>
       );
     }
@@ -808,7 +808,7 @@ const InfluencerDashboard = () => {
                   <div className="w-5 h-5 rounded-full bg-green-100 dark:bg-green-900/50 flex items-center justify-center">
                     <DollarSign className="h-3 w-3 text-green-600" />
                   </div>
-                  <span>استلم خلال 24س</span>
+                  <span>استلم خلال 24 ساعة كحد أقصى</span>
                 </div>
               </div>
             </div>

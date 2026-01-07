@@ -461,7 +461,7 @@ const CampaignDetail = () => {
       return (
         <Badge variant="outline" className="bg-gray-100 text-gray-700 border-gray-300">
           <Clock className="h-3 w-3 me-1" />
-          بانتظار الرفع
+          بانتظار رفع المحتوى
         </Badge>
       );
     }
@@ -1043,11 +1043,7 @@ const CampaignDetail = () => {
           {/* Red Notice */}
           <div className="mb-6 p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
             <p className="text-sm text-red-700 dark:text-red-300 font-medium leading-relaxed">
-              <strong className="text-red-800 dark:text-red-200">ملاحظة:</strong> في حال لم يقبل المؤثّر الدعوة سيتم إرسالها إلى مؤثّر آخر، وإذا لم يتوفّر مؤثّر بديل — أو حتى إذا كان المؤثر الجديد أجره أقل — سيتم إعادة المبلغ المتبقي إلى خانة «الفائض» لتتمكّنوا من الاستفادة منه لاحقًا.
-            </p>
-            <p className="text-sm text-red-700 dark:text-red-300 font-medium leading-relaxed mt-3">
-              تُحتسب رسوم المنصّة بإضافة نسبة ٢٠٪ على قيمة الفريق الأوّلي من المؤثّرين قبل إرسال الدعوات، وفي حال استبدال مؤثّر بآخر أقل سعرًا تبقى الرسوم محسوبة على نتيجة الفرز الأوّلي دون تغيير.
-            </p>
+              <strong className="text-red-800 dark:text-red-200">ملاحظة:</strong>ملاحظة: في حال عدم قبول الدعوة من المؤثّر، تُرسل الدعوة لمؤثر بديل.</p>
           </div>
 
           {suggestions.length > 0 ? (
@@ -1462,7 +1458,7 @@ const CampaignDetail = () => {
                             size="sm"
                             variant="outline"
                             onClick={() => {
-                              navigator.clipboard.writeText('SA74800004706080192145639');
+                              navigator.clipboard.writeText('SA7480000470608019214569');
                               toast.success('تم نسخ رقم الآيبان');
                             }}
                             className="flex-shrink-0"

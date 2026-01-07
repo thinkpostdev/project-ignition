@@ -2,7 +2,7 @@
 // This function checks for invitations that have been pending for more than 48 hours
 // and automatically marks them as declined, then triggers replacement logic
 
-import { createClient } from 'jsr:@supabase/supabase-js@2';
+import { createClient } from "@supabase/supabase-js";
 
 interface ExpiredInvitation {
   id: string;

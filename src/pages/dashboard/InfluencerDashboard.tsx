@@ -7,7 +7,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { LanguageSwitcher } from '@/components/LanguageSwitcher';
-import { Wallet, Briefcase, Mail, CheckCircle2, X, Clock, Calendar, Upload, Link as LinkIcon, AlertCircle, Settings, Info, DollarSign, FileText, Phone, MapPin, ExternalLink } from 'lucide-react';
+import { Wallet, Briefcase, Mail, CheckCircle2, X, Clock, Calendar, Upload, Link as LinkIcon, AlertCircle, Settings, Info, DollarSign, FileText, Phone, MapPin, ExternalLink, Video } from 'lucide-react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
@@ -16,6 +16,7 @@ import { Database } from '@/integrations/supabase/types';
 import { AgreementPopup } from '@/components/AgreementPopup';
 import { BankInfoPopup } from '@/components/BankInfoPopup';
 import FloatingWhatsApp from '@/components/FloatingWhatsApp';
+import { AcceptanceConfirmationDialog } from '@/components/AcceptanceConfirmationDialog';
 
 type ProofStatus = Database['public']['Enums']['proof_status'];
 
@@ -74,6 +75,12 @@ const InfluencerDashboard = () => {
   const [agreementDialogOpen, setAgreementDialogOpen] = useState(false);
   const [bankInfoDialogOpen, setBankInfoDialogOpen] = useState(false);
   const [checkingAgreement, setCheckingAgreement] = useState(true);
+  const [acceptanceDialogOpen, setAcceptanceDialogOpen] = useState(false);
+  const [acceptedInvitationDetails, setAcceptedInvitationDetails] = useState<{
+    title: string;
+    scheduledDate: string | null;
+    location: string;
+  } | null>(null);
 
   useEffect(() => {
     if (user) {
@@ -294,6 +301,9 @@ const InfluencerDashboard = () => {
 
   const handleAcceptInvitation = async (invitationId: string) => {
     try {
+      // Find the invitation to get details for the confirmation dialog
+      const invitation = invitations.find(inv => inv.id === invitationId);
+      
       const { error } = await supabase
         .from('influencer_invitations')
         .update({ status: 'accepted' })
@@ -301,7 +311,20 @@ const InfluencerDashboard = () => {
 
       if (error) throw error;
 
-      toast.success('تم قبول الدعوة بنجاح!');
+      // Show confirmation dialog with next steps
+      if (invitation) {
+        const location = invitation.campaigns?.branches?.neighborhood 
+          ? `${invitation.campaigns.branches.neighborhood}، ${invitation.campaigns.branches.city || ''}`
+          : invitation.campaigns?.branches?.city || '';
+        
+        setAcceptedInvitationDetails({
+          title: invitation.campaigns?.title || invitation.campaigns?.owner_profiles?.business_name || '',
+          scheduledDate: invitation.scheduled_date,
+          location,
+        });
+        setAcceptanceDialogOpen(true);
+      }
+
       fetchInvitations(influencerProfile.id);
     } catch (error) {
       toast.error('فشل قبول الدعوة');
@@ -754,6 +777,43 @@ const InfluencerDashboard = () => {
           <h3 className="text-lg sm:text-xl font-semibold mb-4">
             الحملات المقبولة
           </h3>
+          
+          {/* Workflow Reminder Note */}
+          {invitations.filter(inv => inv.status === 'accepted').length > 0 && (
+            <div className="bg-gradient-to-r from-blue-50 to-purple-50 dark:from-blue-900/20 dark:to-purple-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4 mb-4">
+              <h4 className="font-semibold text-sm mb-2 flex items-center gap-2 text-blue-900 dark:text-blue-100">
+                <Info className="h-4 w-4" />
+                خطوات إكمال التعاون
+              </h4>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
+                <div className="flex items-center gap-1.5 text-muted-foreground">
+                  <div className="w-5 h-5 rounded-full bg-blue-100 dark:bg-blue-900/50 flex items-center justify-center">
+                    <MapPin className="h-3 w-3 text-blue-600" />
+                  </div>
+                  <span>زُر الموقع</span>
+                </div>
+                <div className="flex items-center gap-1.5 text-muted-foreground">
+                  <div className="w-5 h-5 rounded-full bg-purple-100 dark:bg-purple-900/50 flex items-center justify-center">
+                    <Video className="h-3 w-3 text-purple-600" />
+                  </div>
+                  <span>صوّر وانشر</span>
+                </div>
+                <div className="flex items-center gap-1.5 text-muted-foreground">
+                  <div className="w-5 h-5 rounded-full bg-amber-100 dark:bg-amber-900/50 flex items-center justify-center">
+                    <Upload className="h-3 w-3 text-amber-600" />
+                  </div>
+                  <span>ارفع الرابط</span>
+                </div>
+                <div className="flex items-center gap-1.5 text-muted-foreground">
+                  <div className="w-5 h-5 rounded-full bg-green-100 dark:bg-green-900/50 flex items-center justify-center">
+                    <DollarSign className="h-3 w-3 text-green-600" />
+                  </div>
+                  <span>استلم خلال 24س</span>
+                </div>
+              </div>
+            </div>
+          )}
+          
           {invitations.filter(inv => inv.status === 'accepted').length > 0 ? (
             <div className="space-y-4">
               {invitations
@@ -1177,6 +1237,15 @@ const InfluencerDashboard = () => {
           onSuccess={handleBankInfoSuccess}
         />
       )}
+
+      {/* Acceptance Confirmation Dialog */}
+      <AcceptanceConfirmationDialog
+        open={acceptanceDialogOpen}
+        onOpenChange={setAcceptanceDialogOpen}
+        campaignTitle={acceptedInvitationDetails?.title}
+        scheduledDate={acceptedInvitationDetails?.scheduledDate}
+        location={acceptedInvitationDetails?.location}
+      />
     </div>
   );
 };

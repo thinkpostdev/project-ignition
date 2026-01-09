@@ -44,6 +44,7 @@ interface FinancialRow {
   proof_status: string | null;
   link_submitted_at: string | null;
   link_approved_at: string | null;
+  visit_date: string | null;
 }
 
 interface BankInfo {
@@ -379,6 +380,7 @@ export default function FinancialManagement() {
                   <TableHead>Influencer</TableHead>
                   <TableHead>Phone</TableHead>
                   <TableHead>Campaign ID</TableHead>
+                  <TableHead>Visit Date</TableHead>
                   <TableHead>Content Proof</TableHead>
                   <TableHead>Approval Status</TableHead>
                   <TableHead>Bank Info</TableHead>
@@ -389,7 +391,7 @@ export default function FinancialManagement() {
               <TableBody>
                 {filteredData.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={8} className="text-center py-8 text-gray-500">
+                    <TableCell colSpan={9} className="text-center py-8 text-gray-500">
                       No financial records found
                     </TableCell>
                   </TableRow>
@@ -408,6 +410,9 @@ export default function FinancialManagement() {
                         </TableCell>
                         <TableCell className="font-mono text-xs text-gray-500 break-all">
                           {row.campaign_id || 'N/A'}
+                        </TableCell>
+                        <TableCell className="text-sm text-gray-600">
+                          {row.visit_date ? format(new Date(row.visit_date), 'yyyy-MM-dd') : 'N/A'}
                         </TableCell>
                         <TableCell>
                           {row.has_uploaded_link ? (

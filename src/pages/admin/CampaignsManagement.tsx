@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { AdminLayout } from '@/components/admin/AdminLayout';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
@@ -28,7 +29,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
-import { Edit, Loader2, Save, Search } from 'lucide-react';
+import { Edit, Loader2, Save, Search, Eye } from 'lucide-react';
 import { format } from 'date-fns';
 
 import { Database } from '@/integrations/supabase/types';
@@ -73,6 +74,7 @@ const statusOptions = [
 const goalOptions = ['opening', 'promotions', 'new_products', 'other'];
 
 export default function CampaignsManagement() {
+  const navigate = useNavigate();
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
   const [filteredCampaigns, setFilteredCampaigns] = useState<Campaign[]>([]);
   const [loading, setLoading] = useState(true);
@@ -152,9 +154,15 @@ export default function CampaignsManagement() {
     setFilteredCampaigns(filtered);
   };
 
-  const handleEdit = (campaign: Campaign) => {
+  const handleEdit = (campaign: Campaign, e?: React.MouseEvent) => {
+    e?.stopPropagation();
     setEditingCampaign(campaign);
     setEditFormData(campaign);
+  };
+
+  const handleViewCampaign = (campaignId: string, e?: React.MouseEvent) => {
+    e?.stopPropagation();
+    navigate(`/admin/campaigns/${campaignId}`);
   };
 
   const handleSave = async () => {
@@ -266,7 +274,11 @@ export default function CampaignsManagement() {
                   </TableRow>
                 ) : (
                   filteredCampaigns.map((campaign) => (
-                    <TableRow key={campaign.id}>
+                    <TableRow 
+                      key={campaign.id}
+                      className="cursor-pointer hover:bg-gray-50 transition-colors"
+                      onClick={() => handleViewCampaign(campaign.id)}
+                    >
                       <TableCell className="font-mono text-xs text-gray-500">
                         {campaign.id.slice(0, 8)}...
                       </TableCell>
@@ -295,14 +307,24 @@ export default function CampaignsManagement() {
                         )}
                       </TableCell>
                       <TableCell className="text-right">
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => handleEdit(campaign)}
-                        >
-                          <Edit className="h-4 w-4 mr-2" />
-                          Edit
-                        </Button>
+                        <div className="flex items-center justify-end gap-2">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={(e) => handleViewCampaign(campaign.id, e)}
+                          >
+                            <Eye className="h-4 w-4 mr-2" />
+                            View
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={(e) => handleEdit(campaign, e)}
+                          >
+                            <Edit className="h-4 w-4 mr-2" />
+                            Edit
+                          </Button>
+                        </div>
                       </TableCell>
                     </TableRow>
                   ))

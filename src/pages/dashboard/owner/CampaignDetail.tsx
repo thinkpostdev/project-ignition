@@ -100,7 +100,17 @@ interface InvitationWithProof {
   } | null;
 }
 
-const CampaignDetail = () => {
+interface CampaignDetailProps {
+  backNavigationPath?: string;
+  backButtonText?: string;
+  isAdminView?: boolean;
+}
+
+const CampaignDetail = ({ 
+  backNavigationPath = '/dashboard/owner',
+  backButtonText = 'العودة للوحة التحكم',
+  isAdminView = false
+}: CampaignDetailProps = {}) => {
   const { t } = useTranslation();
   const { id } = useParams();
   const { user, signOut } = useAuth();
@@ -248,7 +258,7 @@ const CampaignDetail = () => {
     } catch (error: unknown) {
       console.error('[CampaignDetail] Error fetching campaign:', error);
       toast.error('فشل تحميل الحملة');
-      navigate('/dashboard/owner');
+      navigate(backNavigationPath);
     } finally {
       setLoading(false);
     }
@@ -558,7 +568,7 @@ const CampaignDetail = () => {
       if (error) throw error;
       
       toast.success('تم حذف الحملة بنجاح');
-      navigate('/dashboard/owner');
+      navigate(backNavigationPath);
     } catch (error: unknown) {
       const errorMessage = error instanceof Error ? error.message : 'فشل حذف الحملة';
       toast.error(errorMessage);
@@ -811,10 +821,10 @@ const CampaignDetail = () => {
         <Button 
           variant="ghost" 
           className="mb-6"
-          onClick={() => navigate('/dashboard/owner')}
+          onClick={() => navigate(backNavigationPath)}
         >
           <ArrowLeft className="h-4 w-4 me-2" />
-          العودة للوحة التحكم
+          {backButtonText}
         </Button>
 
         {/* Campaign Header */}

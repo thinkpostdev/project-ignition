@@ -24,6 +24,7 @@ import NotFound from './pages/NotFound';
 import AdminDashboard from './pages/admin/AdminDashboard';
 import InfluencersApproval from './pages/admin/InfluencersApproval';
 import CampaignsManagement from './pages/admin/CampaignsManagement';
+import AdminCampaignDetail from './pages/admin/AdminCampaignDetail';
 import DeveloperTracking from './pages/admin/DeveloperTracking';
 import FinancialManagement from './pages/admin/FinancialManagement';
 
@@ -114,6 +115,14 @@ const App = () => (
               element={
                 <AdminRoute>
                   <CampaignsManagement />
+                </AdminRoute>
+              } 
+            />
+            <Route 
+              path="/admin/campaigns/:id" 
+              element={
+                <AdminRoute>
+                  <AdminCampaignDetail />
                 </AdminRoute>
               } 
             />

@@ -42,6 +42,7 @@ interface Invitation {
     goal_details: string | null;
     content_requirements: string | null;
     preferred_visit_time: string | null;
+    preferred_publish_time: string | null;
     owner_id: string | null;
     owner_profiles: {
       business_name: string | null;
@@ -213,6 +214,7 @@ const InfluencerDashboard = () => {
             goal_details,
             content_requirements,
             preferred_visit_time,
+            preferred_publish_time,
             owner_id,
             branch_id
           )
@@ -839,9 +841,20 @@ const InfluencerDashboard = () => {
                           {invitation.campaigns?.preferred_visit_time && (
                             <div className="flex items-center gap-2 text-xs bg-blue-50 dark:bg-blue-900/20 rounded-lg px-3 py-2 border border-blue-200 dark:border-blue-800">
                               <Clock className="h-3 w-3 text-blue-600" />
-                              <span className="text-muted-foreground">الوقت المفضل:</span>
+                              <span className="text-muted-foreground">الوقت المفضل للزيارة:</span>
                               <span className="font-semibold text-blue-700 dark:text-blue-300">
                                 {getVisitTimeLabel(invitation.campaigns.preferred_visit_time)}
+                              </span>
+                            </div>
+                          )}
+                          
+                          {/* Preferred Publish Time */}
+                          {invitation.campaigns?.preferred_publish_time && (
+                            <div className="flex items-center gap-2 text-xs bg-orange-50 dark:bg-orange-900/20 rounded-lg px-3 py-2 border border-orange-200 dark:border-orange-800">
+                              <Upload className="h-3 w-3 text-orange-600" />
+                              <span className="text-muted-foreground">الوقت المفضل للنشر:</span>
+                              <span className="font-semibold text-orange-700 dark:text-orange-300">
+                                {getVisitTimeLabel(invitation.campaigns.preferred_publish_time)}
                               </span>
                             </div>
                           )}
@@ -1049,9 +1062,20 @@ const InfluencerDashboard = () => {
                         {invitation.campaigns?.preferred_visit_time && (
                           <div className="flex items-center gap-2 text-xs bg-blue-50 dark:bg-blue-900/20 rounded-lg px-3 py-2 border border-blue-200 dark:border-blue-800">
                             <Clock className="h-3 w-3 text-blue-600" />
-                            <span className="text-muted-foreground">الوقت المفضل:</span>
+                            <span className="text-muted-foreground">الوقت المفضل للزيارة:</span>
                             <span className="font-semibold text-blue-700 dark:text-blue-300">
                               {getVisitTimeLabel(invitation.campaigns.preferred_visit_time)}
+                            </span>
+                          </div>
+                        )}
+                        
+                        {/* Preferred Publish Time */}
+                        {invitation.campaigns?.preferred_publish_time && (
+                          <div className="flex items-center gap-2 text-xs bg-orange-50 dark:bg-orange-900/20 rounded-lg px-3 py-2 border border-orange-200 dark:border-orange-800">
+                            <Upload className="h-3 w-3 text-orange-600" />
+                            <span className="text-muted-foreground">الوقت المفضل للنشر:</span>
+                            <span className="font-semibold text-orange-700 dark:text-orange-300">
+                              {getVisitTimeLabel(invitation.campaigns.preferred_publish_time)}
                             </span>
                           </div>
                         )}
@@ -1384,6 +1408,21 @@ const InfluencerDashboard = () => {
                         <p className="text-sm text-muted-foreground">الوقت المفضل للزيارة</p>
                         <p className="font-semibold text-blue-700 dark:text-blue-300">
                           {getVisitTimeLabel(selectedInvitation.campaigns.preferred_visit_time)}
+                        </p>
+                      </div>
+                    </div>
+                  </Card>
+                )}
+
+                {/* Preferred Publish Time */}
+                {selectedInvitation.campaigns.preferred_publish_time && (
+                  <Card className="p-4 bg-gradient-to-br from-orange-50 to-orange-100/50 dark:from-orange-900/20 dark:to-orange-900/10 border-orange-200 dark:border-orange-800">
+                    <div className="flex items-center gap-3">
+                      <Upload className="h-5 w-5 text-orange-600" />
+                      <div>
+                        <p className="text-sm text-muted-foreground">الوقت المفضل للنشر</p>
+                        <p className="font-semibold text-orange-700 dark:text-orange-300">
+                          {getVisitTimeLabel(selectedInvitation.campaigns.preferred_publish_time)}
                         </p>
                       </div>
                     </div>

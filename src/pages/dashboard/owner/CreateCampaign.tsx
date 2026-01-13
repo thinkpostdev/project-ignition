@@ -28,6 +28,7 @@ const campaignSchema = z.object({
   goal_details: z.string().trim().max(500).optional(),
   content_requirements: z.string().trim().max(1000).optional(),
   preferred_visit_time: z.enum(['morning', 'afternoon', 'evening']).optional(),
+  preferred_publish_time: z.enum(['morning', 'afternoon', 'evening']).optional(),
   budget: z.number().min(500, 'الميزانية يجب أن تكون 500 ريال على الأقل'),
   start_date: z.date({
     required_error: 'يجب اختيار تاريخ بدء الحملة',
@@ -124,6 +125,7 @@ const CreateCampaign = () => {
           goal_details: data.goal_details || null,
           content_requirements: data.content_requirements || null,
           preferred_visit_time: data.preferred_visit_time || null,
+          preferred_publish_time: data.preferred_publish_time || null,
           budget: data.budget,
           start_date: data.start_date ? format(data.start_date, 'yyyy-MM-dd') : null,
           duration_days: data.duration_days,
@@ -423,6 +425,26 @@ const CreateCampaign = () => {
                   </Select>
                   <p className="text-xs text-muted-foreground">
                     سيتم إرسال هذه المعلومة للمؤثرين عند قبولهم للحملة
+                  </p>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="preferred_publish_time">ما هو الوقت المفضل لنشر المحتوى؟ (اختياري)</Label>
+                  <Select 
+                    onValueChange={(value) => form.setValue('preferred_publish_time', value as any)}
+                    value={form.watch('preferred_publish_time')}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="اختر الوقت المناسب للنشر" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="morning">صباحاً (7 صباحاً - 12 ظهراً)</SelectItem>
+                      <SelectItem value="afternoon">ظهراً (1 ظهراً - 5 مساءً)</SelectItem>
+                      <SelectItem value="evening">مساءً (6 مساءً - 12 منتصف الليل)</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <p className="text-xs text-muted-foreground">
+                    حدد الوقت الذي تفضل أن ينشر فيه المؤثر المحتوى
                   </p>
                 </div>
               </div>

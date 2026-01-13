@@ -27,6 +27,7 @@ const campaignSchema = z.object({
   goal: z.enum(['opening', 'promotions', 'new_products', 'other']),
   goal_details: z.string().trim().max(500).optional(),
   content_requirements: z.string().trim().max(1000).optional(),
+  preferred_visit_time: z.enum(['morning', 'afternoon', 'evening']).optional(),
   budget: z.number().min(500, 'الميزانية يجب أن تكون 500 ريال على الأقل'),
   start_date: z.date({
     required_error: 'يجب اختيار تاريخ بدء الحملة',
@@ -122,6 +123,7 @@ const CreateCampaign = () => {
           goal: data.goal,
           goal_details: data.goal_details || null,
           content_requirements: data.content_requirements || null,
+          preferred_visit_time: data.preferred_visit_time || null,
           budget: data.budget,
           start_date: data.start_date ? format(data.start_date, 'yyyy-MM-dd') : null,
           duration_days: data.duration_days,
@@ -402,6 +404,26 @@ const CreateCampaign = () => {
                     placeholder="اكتب اذا كان هناك متطلبات معينة للمحتوى مثل فكرة المحتوى , هاشتاقات ,..."
                     {...form.register('content_requirements')}
                   />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="preferred_visit_time">ما هو الوقت المفضل لزيارة المؤثرين؟ (اختياري)</Label>
+                  <Select 
+                    onValueChange={(value) => form.setValue('preferred_visit_time', value as any)}
+                    value={form.watch('preferred_visit_time')}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="اختر الوقت المناسب للزيارة" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="morning">صباحاً (7 صباحاً - 12 ظهراً)</SelectItem>
+                      <SelectItem value="afternoon">ظهراً (1 ظهراً - 5 مساءً)</SelectItem>
+                      <SelectItem value="evening">مساءً (6 مساءً - 12 منتصف الليل)</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <p className="text-xs text-muted-foreground">
+                    سيتم إرسال هذه المعلومة للمؤثرين عند قبولهم للحملة
+                  </p>
                 </div>
               </div>
             )}

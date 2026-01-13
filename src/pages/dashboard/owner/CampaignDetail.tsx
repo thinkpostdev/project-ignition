@@ -124,10 +124,6 @@ const CampaignDetail = ({
   // Track edited dates per suggestion (key: suggestion.id, value: date string)
   const [editedDates, setEditedDates] = useState<Record<string, string>>({});
   const [invitations, setInvitations] = useState<InvitationWithProof[]>([]);
-  const [rejectDialogOpen, setRejectDialogOpen] = useState(false);
-  const [selectedInvitation, setSelectedInvitation] = useState<InvitationWithProof | null>(null);
-  const [rejectionReason, setRejectionReason] = useState('');
-  const [processingProof, setProcessingProof] = useState(false);
   const [paymentDialogOpen, setPaymentDialogOpen] = useState(false);
   const [pollingAttempts, setPollingAttempts] = useState(0);
   const [selectedInfluencer, setSelectedInfluencer] = useState<CampaignSuggestion | null>(null);
@@ -407,67 +403,10 @@ const CampaignDetail = ({
     }
   };
 
-  const handleApproveProof = async (invitationId: string) => {
-    setProcessingProof(true);
-    try {
-      const { error } = await supabase
-        .from('influencer_invitations')
-        .update({
-          proof_status: 'approved',
-          proof_approved_at: new Date().toISOString(),
-          proof_rejected_reason: null,
-        })
-        .eq('id', invitationId);
+  // Proof approve/reject functionality removed - owner can only view the uploaded content
 
-      if (error) throw error;
-
-      toast.success('تم اعتماد المحتوى بنجاح!');
-      await fetchInvitations();
-    } catch (error) {
-      toast.error('فشل اعتماد المحتوى');
-      console.error('Error approving proof:', error);
-    } finally {
-      setProcessingProof(false);
-    }
-  };
-
-  const handleOpenRejectDialog = (invitation: InvitationWithProof) => {
-    setSelectedInvitation(invitation);
-    setRejectionReason('');
-    setRejectDialogOpen(true);
-  };
-
-  const handleRejectProof = async () => {
-    if (!selectedInvitation) return;
-
-    setProcessingProof(true);
-    try {
-      const { error } = await supabase
-        .from('influencer_invitations')
-        .update({
-          proof_status: 'rejected',
-          proof_rejected_reason: rejectionReason || 'لم يتم تقديم سبب',
-          proof_approved_at: null,
-        })
-        .eq('id', selectedInvitation.id);
-
-      if (error) throw error;
-
-      toast.success('تم رفض المحتوى');
-      setRejectDialogOpen(false);
-      setSelectedInvitation(null);
-      setRejectionReason('');
-      await fetchInvitations();
-    } catch (error) {
-      toast.error('فشل رفض المحتوى');
-      console.error('Error rejecting proof:', error);
-    } finally {
-      setProcessingProof(false);
-    }
-  };
-
-  const getProofStatusBadge = (status: ProofStatus | null) => {
-    if (!status || status === 'pending_submission') {
+  const getProofStatusBadge = (status: ProofStatus | null, proofUrl: string | null) => {
+    if (!proofUrl) {
       return (
         <Badge variant="outline" className="bg-gray-100 text-gray-700 border-gray-300">
           <Clock className="h-3 w-3 me-1" />
@@ -475,31 +414,12 @@ const CampaignDetail = ({
         </Badge>
       );
     }
-    if (status === 'submitted') {
-      return (
-        <Badge variant="outline" className="bg-blue-100 text-blue-700 border-blue-300">
-          <Clock className="h-3 w-3 me-1" />
-          بانتظار المراجعة
-        </Badge>
-      );
-    }
-    if (status === 'approved') {
-      return (
-        <Badge variant="outline" className="bg-green-100 text-green-700 border-green-300">
-          <CheckCircle2 className="h-3 w-3 me-1" />
-          معتمد
-        </Badge>
-      );
-    }
-    if (status === 'rejected') {
-      return (
-        <Badge variant="outline" className="bg-red-100 text-red-700 border-red-300">
-          <X className="h-3 w-3 me-1" />
-          مرفوض
-        </Badge>
-      );
-    }
-    return null;
+    return (
+      <Badge variant="outline" className="bg-green-100 text-green-700 border-green-300">
+        <CheckCircle2 className="h-3 w-3 me-1" />
+        تم الرفع
+      </Badge>
+    );
   };
 
   const handleDeleteCampaign = async () => {
@@ -1283,7 +1203,6 @@ const CampaignDetail = ({
                     <TableHead>تاريخ الزيارة</TableHead>
                     <TableHead>الحالة</TableHead>
                     <TableHead>رابط المحتوى</TableHead>
-                    <TableHead className="text-center">الإجراءات</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -1321,75 +1240,79 @@ const CampaignDetail = ({
                         )}
                       </TableCell>
                       <TableCell>
-                        {getProofStatusBadge(invitation.proof_status)}
+                        {getProofStatusBadge(invitation.proof_status, invitation.proof_url)}
                       </TableCell>
                       <TableCell>
                         {invitation.proof_url ? (
-                          <a
-                            href={invitation.proof_url}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="inline-flex items-center gap-1 text-sm text-primary hover:underline"
-                          >
-                            <LinkIcon className="h-3 w-3" />
-                            فتح الرابط
-                          </a>
+                          (() => {
+                            try {
+                              const urls = JSON.parse(invitation.proof_url);
+                              return (
+                                <div className="flex flex-wrap gap-2">
+                                  {urls.tiktok && (
+                                    <a
+                                      href={urls.tiktok}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className="text-xs bg-black text-white hover:bg-gray-800 rounded px-2 py-1 flex items-center gap-1"
+                                    >
+                                      TikTok
+                                      <LinkIcon className="h-3 w-3" />
+                                    </a>
+                                  )}
+                                  {urls.instagram && (
+                                    <a
+                                      href={urls.instagram}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className="text-xs bg-gradient-to-r from-purple-500 to-pink-500 text-white hover:from-purple-600 hover:to-pink-600 rounded px-2 py-1 flex items-center gap-1"
+                                    >
+                                      Instagram
+                                      <LinkIcon className="h-3 w-3" />
+                                    </a>
+                                  )}
+                                  {urls.snapchat && (
+                                    <a
+                                      href={urls.snapchat}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className="text-xs bg-yellow-400 text-gray-900 hover:bg-yellow-500 rounded px-2 py-1 flex items-center gap-1"
+                                    >
+                                      Snapchat
+                                      <LinkIcon className="h-3 w-3" />
+                                    </a>
+                                  )}
+                                  {urls.youtube && (
+                                    <a
+                                      href={urls.youtube}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className="text-xs bg-red-600 text-white hover:bg-red-700 rounded px-2 py-1 flex items-center gap-1"
+                                    >
+                                      YouTube
+                                      <LinkIcon className="h-3 w-3" />
+                                    </a>
+                                  )}
+                                </div>
+                              );
+                            } catch {
+                              // Old format - single URL
+                              return (
+                                <a
+                                  href={invitation.proof_url}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="inline-flex items-center gap-1 text-sm text-primary hover:underline"
+                                >
+                                  <LinkIcon className="h-3 w-3" />
+                                  فتح الرابط
+                                </a>
+                              );
+                            }
+                          })()
                         ) : (
                           <span className="text-sm text-muted-foreground">لم يتم الرفع</span>
                         )}
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex items-center justify-center gap-2">
-                          {invitation.proof_status === 'submitted' && (
-                            <>
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                onClick={() => handleApproveProof(invitation.id)}
-                                disabled={processingProof}
-                                className="text-green-600 hover:text-green-700 hover:bg-green-50"
-                              >
-                                <CheckCircle2 className="h-4 w-4 me-1" />
-                                اعتماد
-                              </Button>
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                onClick={() => handleOpenRejectDialog(invitation)}
-                                disabled={processingProof}
-                                className="text-red-600 hover:text-red-700 hover:bg-red-50"
-                              >
-                                <X className="h-4 w-4 me-1" />
-                                رفض
-                              </Button>
-                            </>
-                          )}
-                          {invitation.proof_status === 'approved' && (
-                            <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
-                              <CheckCircle2 className="h-3 w-3 me-1" />
-                              تم الاعتماد
-                            </Badge>
-                          )}
-                          {invitation.proof_status === 'rejected' && (
-                            <div className="text-center">
-                              <Badge variant="outline" className="bg-red-50 text-red-700 border-red-200 mb-1">
-                                <X className="h-3 w-3 me-1" />
-                                مرفوض
-                              </Badge>
-                              {invitation.proof_rejected_reason && (
-                                <p className="text-xs text-muted-foreground mt-1">
-                                  {invitation.proof_rejected_reason.slice(0, 30)}
-                                  {invitation.proof_rejected_reason.length > 30 ? '...' : ''}
-                                </p>
-                              )}
-                            </div>
-                          )}
-                          {invitation.proof_status === 'pending_submission' && (
-                            <span className="text-xs text-muted-foreground">
-                              في انتظار المؤثر
-                            </span>
-                          )}
-                        </div>
                       </TableCell>
                     </TableRow>
                   ))}
@@ -1456,6 +1379,11 @@ const CampaignDetail = ({
                       <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2 border-b pb-3">
                         <span className="text-muted-foreground font-medium">اسم الشركة:</span>
                         <span className="font-bold text-lg">شركة فكرة مبرمج</span>
+                      </div>
+                      
+                      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2 border-b pb-3">
+                        <span className="text-muted-foreground font-medium">اسم البنك:</span>
+                        <span className="font-bold text-lg">بنك الراجحي</span>
                       </div>
                       
                       <div className="flex flex-col gap-2">
@@ -1623,76 +1551,6 @@ const CampaignDetail = ({
                 className="flex-1"
               >
                 {deleting ? 'جاري الحذف...' : 'حذف'}
-              </Button>
-            </div>
-          </DialogContent>
-        </Dialog>
-
-        {/* Rejection Reason Dialog */}
-        <Dialog open={rejectDialogOpen} onOpenChange={setRejectDialogOpen}>
-          <DialogContent className="sm:max-w-[500px]">
-            <DialogHeader>
-              <DialogTitle>رفض المحتوى</DialogTitle>
-              <DialogDescription>
-                يرجى تقديم سبب الرفض (اختياري). سيتمكن المؤثر من رؤية السبب ورفع محتوى جديد.
-              </DialogDescription>
-            </DialogHeader>
-            <div className="space-y-4 py-4">
-              <div className="space-y-2">
-                <Label htmlFor="rejection-reason">سبب الرفض (اختياري)</Label>
-                <Textarea
-                  id="rejection-reason"
-                  placeholder="مثال: المحتوى لا يتطابق مع متطلبات الحملة، أو الجودة غير مناسبة..."
-                  value={rejectionReason}
-                  onChange={(e) => setRejectionReason(e.target.value)}
-                  rows={4}
-                  disabled={processingProof}
-                />
-              </div>
-              
-              {selectedInvitation && (
-                <div className="bg-muted rounded-lg p-3">
-                  <p className="text-sm">
-                    <strong>المؤثر:</strong>{' '}
-                    {selectedInvitation.influencer_profiles?.display_name ||
-                     selectedInvitation.influencer_profiles?.instagram_handle ||
-                     'مؤثر'}
-                  </p>
-                  {selectedInvitation.proof_url && (
-                    <p className="text-sm mt-1">
-                      <strong>الرابط:</strong>{' '}
-                      <a
-                        href={selectedInvitation.proof_url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-primary hover:underline"
-                      >
-                        عرض المحتوى
-                      </a>
-                    </p>
-                  )}
-                </div>
-              )}
-            </div>
-            <div className="flex gap-3">
-              <Button
-                variant="outline"
-                onClick={() => {
-                  setRejectDialogOpen(false);
-                  setRejectionReason('');
-                  setSelectedInvitation(null);
-                }}
-                className="flex-1"
-                disabled={processingProof}
-              >
-                إلغاء
-              </Button>
-              <Button
-                onClick={handleRejectProof}
-                className="flex-1 bg-red-600 hover:bg-red-700"
-                disabled={processingProof}
-              >
-                {processingProof ? 'جاري الرفض...' : 'تأكيد الرفض'}
               </Button>
             </div>
           </DialogContent>

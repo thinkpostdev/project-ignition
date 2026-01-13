@@ -64,6 +64,30 @@ const InfluencerProfile = () => {
   const [bankName, setBankName] = useState('');
   const [iban, setIban] = useState('');
 
+  // Format IBAN with spaces as user types (SA00 0000 0000 0000 0000 0000)
+  const handleIbanChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    let value = e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, ''); // Remove all non-alphanumeric
+    
+    // Ensure it starts with SA
+    if (value.length > 0 && !value.startsWith('SA')) {
+      value = 'SA' + value.replace(/^SA/gi, '');
+    }
+    
+    // Limit to 24 characters (SA + 22 digits)
+    value = value.slice(0, 24);
+    
+    // Add spaces: SA00 0000 0000 0000 0000 0000
+    let formatted = value;
+    if (value.length > 2) {
+      formatted = value.slice(0, 4); // SA00
+      for (let i = 4; i < value.length; i += 4) {
+        formatted += ' ' + value.slice(i, i + 4);
+      }
+    }
+    
+    setIban(formatted);
+  };
+
   const form = useForm<ProfileData>({
     resolver: zodResolver(profileSchema),
     defaultValues: {
@@ -104,7 +128,18 @@ const InfluencerProfile = () => {
       
       // Set bank info
       setBankName(profile.bank_name || '');
-      setIban(profile.iban || '');
+      
+      // Format existing IBAN with spaces
+      if (profile.iban) {
+        const cleanIban = profile.iban.replace(/\s/g, '');
+        let formatted = cleanIban.slice(0, 4);
+        for (let i = 4; i < cleanIban.length; i += 4) {
+          formatted += ' ' + cleanIban.slice(i, i + 4);
+        }
+        setIban(formatted);
+      } else {
+        setIban('');
+      }
 
       // Determine collaboration type
       const collaborationType = profile.accept_paid ? 'paid' : 'hospitality';
@@ -535,18 +570,29 @@ const InfluencerProfile = () => {
                       />
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="iban">رقم الآيبان (IBAN)</Label>
+                      <Label htmlFor="iban" className="text-base font-semibold">رقم الآيبان (IBAN)</Label>
                       <Input
                         id="iban"
                         value={iban}
-                        onChange={(e) => setIban(e.target.value)}
-                        placeholder="SA0000000000000000000000"
-                        className="font-mono"
+                        onChange={handleIbanChange}
+                        placeholder="SA00 0000 0000 0000 0000 0000"
+                        className="font-mono text-lg tracking-wider"
                         dir="ltr"
+                        maxLength={29}
                       />
-                      <p className="text-xs text-muted-foreground">
-                        رقم الآيبان السعودي يبدأ بـ SA ويتكون من 24 حرف
-                      </p>
+                      <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-3">
+                        <p className="text-sm font-medium text-blue-800 dark:text-blue-200 mb-1">
+                          📋 التنسيق الصحيح:
+                        </p>
+                        <p className="text-sm font-mono text-blue-700 dark:text-blue-300 tracking-wider">
+                          SA00 0000 0000 0000 0000 0000
+                        </p>
+                        <p className="text-xs text-blue-600 dark:text-blue-400 mt-2">
+                          • يبدأ بـ SA ثم 22 رقم
+                          <br />
+                          • يتم إضافة المسافات تلقائياً
+                        </p>
+                      </div>
                     </div>
                   </div>
                 </div>

@@ -41,6 +41,7 @@ interface Invitation {
     goal: string | null;
     goal_details: string | null;
     content_requirements: string | null;
+    preferred_visit_time: string | null;
     owner_id: string | null;
     owner_profiles: {
       business_name: string | null;
@@ -70,7 +71,11 @@ const InfluencerDashboard = () => {
   const [proofUploadDialogOpen, setProofUploadDialogOpen] = useState(false);
   const [campaignDetailsDialogOpen, setCampaignDetailsDialogOpen] = useState(false);
   const [selectedInvitation, setSelectedInvitation] = useState<Invitation | null>(null);
-  const [proofUrl, setProofUrl] = useState('');
+  const [proofUrl, setProofUrl] = useState(''); // Legacy field, kept for backward compatibility
+  const [tiktokUrl, setTiktokUrl] = useState('');
+  const [instagramUrl, setInstagramUrl] = useState('');
+  const [snapchatUrl, setSnapchatUrl] = useState('');
+  const [youtubeUrl, setYoutubeUrl] = useState('');
   const [submittingProof, setSubmittingProof] = useState(false);
   const [agreementDialogOpen, setAgreementDialogOpen] = useState(false);
   const [bankInfoDialogOpen, setBankInfoDialogOpen] = useState(false);
@@ -128,6 +133,13 @@ const InfluencerDashboard = () => {
       // Check if agreement is accepted
       if (!influencerProfile.agreement_accepted) {
         setAgreementDialogOpen(true);
+      } else {
+        // Agreement already accepted, check if bank info is needed
+        // Only show for paid influencers who haven't provided bank info yet
+        if (influencerProfile.accept_paid && 
+            (!influencerProfile.bank_name || !influencerProfile.iban)) {
+          setBankInfoDialogOpen(true);
+        }
       }
     } catch (error) {
       console.error('Error checking agreement status:', error);
@@ -155,8 +167,9 @@ const InfluencerDashboard = () => {
       setAgreementDialogOpen(false);
       toast.success('تم قبول الاتفاقية بنجاح');
       
-      // Check if bank info is missing, show bank info popup
-      if (!influencerProfile.bank_name || !influencerProfile.iban) {
+      // Check if bank info is missing AND influencer is paid type, show bank info popup
+      // Hospitality (free) influencers don't need to provide bank info
+      if (influencerProfile.accept_paid && (!influencerProfile.bank_name || !influencerProfile.iban)) {
         setBankInfoDialogOpen(true);
       }
     } catch (error) {
@@ -199,6 +212,7 @@ const InfluencerDashboard = () => {
             goal,
             goal_details,
             content_requirements,
+            preferred_visit_time,
             owner_id,
             branch_id
           )
@@ -388,30 +402,74 @@ const InfluencerDashboard = () => {
 
   const handleOpenProofUpload = (invitation: Invitation) => {
     setSelectedInvitation(invitation);
-    setProofUrl(invitation.proof_url || '');
+    
+    // Parse existing URLs if they exist
+    if (invitation.proof_url) {
+      try {
+        const urls = JSON.parse(invitation.proof_url);
+        setTiktokUrl(urls.tiktok || '');
+        setInstagramUrl(urls.instagram || '');
+        setSnapchatUrl(urls.snapchat || '');
+        setYoutubeUrl(urls.youtube || '');
+      } catch {
+        // If it's a single URL string (old format), put it in TikTok
+        setTiktokUrl(invitation.proof_url || '');
+        setInstagramUrl('');
+        setSnapchatUrl('');
+        setYoutubeUrl('');
+      }
+    } else {
+      setTiktokUrl('');
+      setInstagramUrl('');
+      setSnapchatUrl('');
+      setYoutubeUrl('');
+    }
+    
     setProofUploadDialogOpen(true);
   };
 
   const handleSubmitProof = async () => {
-    if (!selectedInvitation || !proofUrl.trim()) {
-      toast.error('يرجى إدخال رابط المحتوى');
+    if (!selectedInvitation) return;
+
+    // TikTok is required
+    if (!tiktokUrl.trim()) {
+      toast.error('رابط TikTok مطلوب');
       return;
     }
 
-    // Basic URL validation
-    try {
-      new URL(proofUrl);
-    } catch {
-      toast.error('الرابط غير صالح. يرجى إدخال رابط صحيح');
-      return;
+    // Validate all provided URLs
+    const urlsToValidate = [
+      { url: tiktokUrl, name: 'TikTok' },
+      { url: instagramUrl, name: 'Instagram' },
+      { url: snapchatUrl, name: 'Snapchat' },
+      { url: youtubeUrl, name: 'YouTube' }
+    ];
+
+    for (const { url, name } of urlsToValidate) {
+      if (url.trim()) {
+        try {
+          new URL(url);
+        } catch {
+          toast.error(`رابط ${name} غير صالح`);
+          return;
+        }
+      }
     }
 
     setSubmittingProof(true);
     try {
+      // Store all URLs as JSON object
+      const proofUrls = {
+        tiktok: tiktokUrl.trim(),
+        instagram: instagramUrl.trim() || null,
+        snapchat: snapchatUrl.trim() || null,
+        youtube: youtubeUrl.trim() || null
+      };
+
       const { error } = await supabase
         .from('influencer_invitations')
         .update({
-          proof_url: proofUrl,
+          proof_url: JSON.stringify(proofUrls),
           proof_submitted_at: new Date().toISOString(),
           proof_status: 'submitted',
         })
@@ -419,13 +477,16 @@ const InfluencerDashboard = () => {
 
       if (error) throw error;
 
-      toast.success('تم رفع رابط المحتوى بنجاح!');
+      toast.success('تم رفع روابط المحتوى بنجاح!');
       setProofUploadDialogOpen(false);
-      setProofUrl('');
+      setTiktokUrl('');
+      setInstagramUrl('');
+      setSnapchatUrl('');
+      setYoutubeUrl('');
       setSelectedInvitation(null);
       fetchInvitations(influencerProfile.id);
     } catch (error) {
-      toast.error('فشل رفع الرابط');
+      toast.error('فشل رفع الروابط');
       console.error('Error submitting proof:', error);
     } finally {
       setSubmittingProof(false);
@@ -450,8 +511,18 @@ const InfluencerDashboard = () => {
     return labels[goal] || goal;
   };
 
-  const getProofStatusBadge = (status: ProofStatus | null) => {
-    if (!status || status === 'pending_submission') {
+  const getVisitTimeLabel = (visitTime: string | null) => {
+    if (!visitTime) return null;
+    const labels: Record<string, string> = {
+      morning: 'صباحاً (7 صباحاً - 12 ظهراً)',
+      afternoon: 'ظهراً (1 ظهراً - 5 مساءً)',
+      evening: 'مساءً (6 مساءً - 12 منتصف الليل)',
+    };
+    return labels[visitTime] || visitTime;
+  };
+
+  const getProofStatusBadge = (proofUrl: string | null) => {
+    if (!proofUrl) {
       return (
         <Badge variant="outline" className="bg-gray-100 text-gray-700 border-gray-300">
           <Clock className="h-3 w-3 me-1" />
@@ -459,31 +530,12 @@ const InfluencerDashboard = () => {
         </Badge>
       );
     }
-    if (status === 'submitted') {
-      return (
-        <Badge variant="outline" className="bg-blue-100 text-blue-700 border-blue-300">
-          <Clock className="h-3 w-3 me-1" />
-          بانتظار المراجعة
-        </Badge>
-      );
-    }
-    if (status === 'approved') {
-      return (
-        <Badge variant="outline" className="bg-green-100 text-green-700 border-green-300">
-          <CheckCircle2 className="h-3 w-3 me-1" />
-          تم الاعتماد
-        </Badge>
-      );
-    }
-    if (status === 'rejected') {
-      return (
-        <Badge variant="outline" className="bg-red-100 text-red-700 border-red-300">
-          <X className="h-3 w-3 me-1" />
-          مرفوض
-        </Badge>
-      );
-    }
-    return null;
+    return (
+      <Badge variant="outline" className="bg-green-100 text-green-700 border-green-300">
+        <CheckCircle2 className="h-3 w-3 me-1" />
+        تم الرفع
+      </Badge>
+    );
   };
 
   // Calculate time remaining for invitation expiration (48 hours from creation)
@@ -669,7 +721,7 @@ const InfluencerDashboard = () => {
                   <Card key={invitation.id} className="p-3 sm:p-4 hover:border-primary transition-colors border-r-4 border-r-primary">
                     <div className="space-y-3">
                       <div className="flex items-start justify-between gap-2 sm:gap-4">
-                        <div className="flex-1 space-y-2 min-w-0">
+                        <div className="flex-1 space-y-3 min-w-0">
                           <div className="flex items-center gap-2 flex-wrap">
                             <h4 className="font-semibold text-base sm:text-lg break-words">
                               {invitation.campaigns?.title || invitation.campaigns?.owner_profiles?.business_name || 'حملة جديدة'}
@@ -682,11 +734,71 @@ const InfluencerDashboard = () => {
                             📍 {invitation.campaigns?.branches?.neighborhood && `${invitation.campaigns.branches.neighborhood}، `}
                             {invitation.campaigns?.branches?.city || 'غير محدد'}
                           </p>
+                          
+                          {/* Full Campaign Description */}
                           {invitation.campaigns?.description && (
-                            <p className="text-xs sm:text-sm text-muted-foreground leading-relaxed line-clamp-3">
-                              {invitation.campaigns.description.slice(0, 150)}
-                              {invitation.campaigns.description.length > 150 ? '...' : ''}
-                            </p>
+                            <Card className="p-3 bg-muted/50">
+                              <p className="text-xs sm:text-sm leading-relaxed whitespace-pre-wrap">
+                                {invitation.campaigns.description}
+                              </p>
+                            </Card>
+                          )}
+                          
+                          {/* Goal Details */}
+                          {invitation.campaigns?.goal_details && (
+                            <Card className="p-3 bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800">
+                              <h5 className="text-xs font-semibold mb-1 flex items-center gap-1">
+                                <Info className="h-3 w-3" />
+                                تفاصيل الهدف:
+                              </h5>
+                              <p className="text-xs leading-relaxed whitespace-pre-wrap text-blue-900 dark:text-blue-100">
+                                {invitation.campaigns.goal_details}
+                              </p>
+                            </Card>
+                          )}
+                          
+                          {/* Content Requirements */}
+                          {invitation.campaigns?.content_requirements && (
+                            <Card className="p-3 bg-purple-50 dark:bg-purple-900/20 border-purple-200 dark:border-purple-800">
+                              <h5 className="text-xs font-semibold mb-1 flex items-center gap-1">
+                                <Video className="h-3 w-3" />
+                                متطلبات المحتوى:
+                              </h5>
+                              <p className="text-xs leading-relaxed whitespace-pre-wrap text-purple-900 dark:text-purple-100">
+                                {invitation.campaigns.content_requirements}
+                              </p>
+                            </Card>
+                          )}
+                          
+                          {/* Owner Contact Phone */}
+                          {invitation.campaigns?.owner_profiles?.phone && (
+                            <div className="flex items-center gap-2 text-xs bg-green-50 dark:bg-green-900/20 rounded-lg px-3 py-2 border border-green-200 dark:border-green-800">
+                              <Phone className="h-3 w-3 text-green-600" />
+                              <span className="text-muted-foreground">رقم التواصل:</span>
+                              <a 
+                                href={`tel:${invitation.campaigns.owner_profiles.phone}`}
+                                className="font-semibold text-green-700 dark:text-green-300 hover:underline"
+                                dir="ltr"
+                              >
+                                {invitation.campaigns.owner_profiles.phone}
+                              </a>
+                            </div>
+                          )}
+                          
+                          {/* Branch Location */}
+                          {invitation.campaigns?.branches?.google_map_url && (
+                            <a
+                              href={invitation.campaigns.branches.google_map_url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="flex items-center gap-2 text-xs bg-amber-50 dark:bg-amber-900/20 rounded-lg px-3 py-2 border border-amber-200 dark:border-amber-800 hover:bg-amber-100 dark:hover:bg-amber-900/30 transition-colors"
+                            >
+                              <MapPin className="h-3 w-3 text-amber-600" />
+                              <span className="font-semibold text-amber-700 dark:text-amber-300">
+                                عرض الموقع على خرائط جوجل
+                              </span>
+                              <ExternalLink className="h-3 w-3 text-amber-600" />
+                            </a>
                           )}
                           <div className="flex items-center gap-3 sm:gap-4 flex-wrap">
                             {invitation.offered_price && invitation.offered_price > 0 ? (
@@ -723,42 +835,41 @@ const InfluencerDashboard = () => {
                             </div>
                           )}
                           
+                          {/* Preferred Visit Time */}
+                          {invitation.campaigns?.preferred_visit_time && (
+                            <div className="flex items-center gap-2 text-xs bg-blue-50 dark:bg-blue-900/20 rounded-lg px-3 py-2 border border-blue-200 dark:border-blue-800">
+                              <Clock className="h-3 w-3 text-blue-600" />
+                              <span className="text-muted-foreground">الوقت المفضل:</span>
+                              <span className="font-semibold text-blue-700 dark:text-blue-300">
+                                {getVisitTimeLabel(invitation.campaigns.preferred_visit_time)}
+                              </span>
+                            </div>
+                          )}
+                          
                           {/* Expiration Countdown */}
                           {getExpirationDisplay(invitation.created_at)}
                         </div>
                       </div>
                       
                       {/* Action Buttons */}
-                      <div className="flex flex-col sm:flex-row items-stretch gap-2 pt-2 border-t">
+                      <div className="flex gap-2 pt-2 border-t">
                         <Button 
                           size="sm" 
                           variant="outline"
-                          onClick={() => handleOpenCampaignDetails(invitation)}
-                          className="flex-1 text-xs sm:text-sm h-9 sm:h-10"
+                          onClick={() => handleRejectInvitation(invitation.id)}
+                          className="text-destructive hover:bg-destructive/10 flex-1 text-xs sm:text-sm h-9 sm:h-10"
                         >
-                          <Info className="h-3 w-3 sm:h-4 sm:w-4 me-1" />
-                          <span className="hidden sm:inline">عرض التفاصيل</span>
-                          <span className="sm:hidden">التفاصيل</span>
+                          <X className="h-3 w-3 sm:h-4 sm:w-4 me-1" />
+                          رفض
                         </Button>
-                        <div className="flex gap-2 sm:flex-none">
-                          <Button 
-                            size="sm" 
-                            variant="outline"
-                            onClick={() => handleRejectInvitation(invitation.id)}
-                            className="text-destructive hover:bg-destructive/10 flex-1 sm:flex-none text-xs sm:text-sm h-9 sm:h-10"
-                          >
-                            <X className="h-3 w-3 sm:h-4 sm:w-4 sm:me-1" />
-                            <span className="hidden sm:inline">رفض</span>
-                          </Button>
-                          <Button 
-                            size="sm"
-                            onClick={() => handleAcceptInvitation(invitation.id)}
-                            className="bg-success hover:bg-success/90 flex-1 sm:flex-none text-xs sm:text-sm h-9 sm:h-10"
-                          >
-                            <CheckCircle2 className="h-3 w-3 sm:h-4 sm:w-4 sm:me-1" />
-                            <span className="hidden sm:inline">قبول</span>
-                          </Button>
-                        </div>
+                        <Button 
+                          size="sm"
+                          onClick={() => handleAcceptInvitation(invitation.id)}
+                          className="bg-success hover:bg-success/90 flex-1 text-xs sm:text-sm h-9 sm:h-10"
+                        >
+                          <CheckCircle2 className="h-3 w-3 sm:h-4 sm:w-4 me-1" />
+                          قبول
+                        </Button>
                       </div>
                     </div>
                   </Card>
@@ -822,7 +933,7 @@ const InfluencerDashboard = () => {
                   <Card key={invitation.id} className="p-4 border-r-4 border-r-success bg-success/5">
                     <div className="space-y-3">
                       <div className="flex items-start justify-between gap-4">
-                        <div className="flex-1 space-y-2">
+                        <div className="flex-1 space-y-3">
                           <div className="flex items-center gap-2 flex-wrap">
                             <h4 className="font-semibold">
                               {invitation.campaigns?.title || invitation.campaigns?.owner_profiles?.business_name || 'حملة'}
@@ -831,18 +942,79 @@ const InfluencerDashboard = () => {
                               <CheckCircle2 className="h-3 w-3 me-1" />
                               نشط
                             </Badge>
-                            {getProofStatusBadge(invitation.proof_status)}
+                            {getProofStatusBadge(invitation.proof_url)}
                           </div>
                           <p className="text-sm text-muted-foreground flex items-center gap-1">
                             📍 {invitation.campaigns?.branches?.neighborhood && `${invitation.campaigns.branches.neighborhood}، `}
                             {invitation.campaigns?.branches?.city || 'غير محدد'}
                           </p>
+                          
+                          {/* Full Campaign Description */}
                           {invitation.campaigns?.description && (
-                            <p className="text-sm text-muted-foreground">
-                              {invitation.campaigns.description.slice(0, 100)}
-                              {invitation.campaigns.description.length > 100 ? '...' : ''}
-                            </p>
+                            <Card className="p-3 bg-muted/50">
+                              <p className="text-xs sm:text-sm leading-relaxed whitespace-pre-wrap">
+                                {invitation.campaigns.description}
+                              </p>
+                            </Card>
                           )}
+                          
+                          {/* Goal Details */}
+                          {invitation.campaigns?.goal_details && (
+                            <Card className="p-3 bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800">
+                              <h5 className="text-xs font-semibold mb-1 flex items-center gap-1">
+                                <Info className="h-3 w-3" />
+                                تفاصيل الهدف:
+                              </h5>
+                              <p className="text-xs leading-relaxed whitespace-pre-wrap text-blue-900 dark:text-blue-100">
+                                {invitation.campaigns.goal_details}
+                              </p>
+                            </Card>
+                          )}
+                          
+                          {/* Content Requirements */}
+                          {invitation.campaigns?.content_requirements && (
+                            <Card className="p-3 bg-purple-50 dark:bg-purple-900/20 border-purple-200 dark:border-purple-800">
+                              <h5 className="text-xs font-semibold mb-1 flex items-center gap-1">
+                                <Video className="h-3 w-3" />
+                                متطلبات المحتوى:
+                              </h5>
+                              <p className="text-xs leading-relaxed whitespace-pre-wrap text-purple-900 dark:text-purple-100">
+                                {invitation.campaigns.content_requirements}
+                              </p>
+                            </Card>
+                          )}
+                          
+                          {/* Owner Contact Phone */}
+                          {invitation.campaigns?.owner_profiles?.phone && (
+                            <div className="flex items-center gap-2 text-xs bg-green-50 dark:bg-green-900/20 rounded-lg px-3 py-2 border border-green-200 dark:border-green-800">
+                              <Phone className="h-3 w-3 text-green-600" />
+                              <span className="text-muted-foreground">رقم التواصل:</span>
+                              <a 
+                                href={`tel:${invitation.campaigns.owner_profiles.phone}`}
+                                className="font-semibold text-green-700 dark:text-green-300 hover:underline"
+                                dir="ltr"
+                              >
+                                {invitation.campaigns.owner_profiles.phone}
+                              </a>
+                            </div>
+                          )}
+                          
+                          {/* Branch Location */}
+                          {invitation.campaigns?.branches?.google_map_url && (
+                            <a
+                              href={invitation.campaigns.branches.google_map_url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="flex items-center gap-2 text-xs bg-amber-50 dark:bg-amber-900/20 rounded-lg px-3 py-2 border border-amber-200 dark:border-amber-800 hover:bg-amber-100 dark:hover:bg-amber-900/30 transition-colors"
+                            >
+                              <MapPin className="h-3 w-3 text-amber-600" />
+                              <span className="font-semibold text-amber-700 dark:text-amber-300">
+                                عرض الموقع على خرائط جوجل
+                              </span>
+                              <ExternalLink className="h-3 w-3 text-amber-600" />
+                            </a>
+                          )}
+                          
                           <div className="flex items-center gap-4 flex-wrap">
                             {invitation.offered_price && invitation.offered_price > 0 ? (
                               <div className="flex items-center gap-1">
@@ -856,15 +1028,6 @@ const InfluencerDashboard = () => {
                                 ضيافة مجانية
                               </Badge>
                             )}
-                            <Button
-                              size="sm"
-                              variant="ghost"
-                              onClick={() => handleOpenCampaignDetails(invitation)}
-                              className="text-primary hover:text-primary/80"
-                            >
-                              <Info className="h-4 w-4 me-1" />
-                              عرض التفاصيل
-                            </Button>
                           </div>
                           {/* Scheduled Visit Date */}
                         {invitation.scheduled_date && (
@@ -881,6 +1044,17 @@ const InfluencerDashboard = () => {
                             </span>
                           </div>
                         )}
+                        
+                        {/* Preferred Visit Time */}
+                        {invitation.campaigns?.preferred_visit_time && (
+                          <div className="flex items-center gap-2 text-xs bg-blue-50 dark:bg-blue-900/20 rounded-lg px-3 py-2 border border-blue-200 dark:border-blue-800">
+                            <Clock className="h-3 w-3 text-blue-600" />
+                            <span className="text-muted-foreground">الوقت المفضل:</span>
+                            <span className="font-semibold text-blue-700 dark:text-blue-300">
+                              {getVisitTimeLabel(invitation.campaigns.preferred_visit_time)}
+                            </span>
+                          </div>
+                        )}
                         </div>
                       </div>
                       
@@ -888,58 +1062,105 @@ const InfluencerDashboard = () => {
                       <div className="border-t pt-3 space-y-2">
                         <div className="flex items-center justify-between">
                           <span className="text-sm font-medium text-muted-foreground">
-                            رابط المحتوى المنشور:
+                            روابط المحتوى المنشور:
                           </span>
-                          {invitation.proof_url && (
-                            <a 
-                              href={invitation.proof_url}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="text-sm text-primary hover:underline flex items-center gap-1"
-                            >
-                              <LinkIcon className="h-3 w-3" />
-                              عرض الرابط
-                            </a>
-                          )}
                         </div>
-                        
-                        {/* Show rejection reason if rejected */}
-                        {invitation.proof_status === 'rejected' && invitation.proof_rejected_reason && (
-                          <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-3">
-                            <div className="flex items-start gap-2">
-                              <AlertCircle className="h-4 w-4 text-red-600 mt-0.5" />
-                              <div>
-                                <p className="text-sm font-medium text-red-900 dark:text-red-100">سبب الرفض:</p>
-                                <p className="text-sm text-red-700 dark:text-red-300 mt-1">
-                                  {invitation.proof_rejected_reason}
-                                </p>
+                        {invitation.proof_url && (() => {
+                          try {
+                            const urls = JSON.parse(invitation.proof_url);
+                            return (
+                              <div className="flex flex-wrap gap-2">
+                                {urls.tiktok && (
+                                  <a
+                                    href={urls.tiktok}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="text-xs bg-black text-white hover:bg-gray-800 rounded-lg px-3 py-1.5 flex items-center gap-1.5 transition-colors"
+                                  >
+                                    <svg className="h-3 w-3" viewBox="0 0 24 24" fill="currentColor">
+                                      <path d="M19.59 6.69a4.83 4.83 0 0 1-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 0 1-5.2 1.74 2.89 2.89 0 0 1 2.31-4.64 2.93 2.93 0 0 1 .88.13V9.4a6.84 6.84 0 0 0-1-.05A6.33 6.33 0 0 0 5 20.1a6.34 6.34 0 0 0 10.86-4.43v-7a8.16 8.16 0 0 0 4.77 1.52v-3.4a4.85 4.85 0 0 1-1-.1z"/>
+                                    </svg>
+                                    TikTok
+                                    <ExternalLink className="h-3 w-3" />
+                                  </a>
+                                )}
+                                {urls.instagram && (
+                                  <a
+                                    href={urls.instagram}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="text-xs bg-gradient-to-r from-purple-500 to-pink-500 text-white hover:from-purple-600 hover:to-pink-600 rounded-lg px-3 py-1.5 flex items-center gap-1.5 transition-colors"
+                                  >
+                                    <svg className="h-3 w-3" viewBox="0 0 24 24" fill="currentColor">
+                                      <path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z"/>
+                                    </svg>
+                                    Instagram
+                                    <ExternalLink className="h-3 w-3" />
+                                  </a>
+                                )}
+                                {urls.snapchat && (
+                                  <a
+                                    href={urls.snapchat}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="text-xs bg-yellow-400 text-gray-900 hover:bg-yellow-500 rounded-lg px-3 py-1.5 flex items-center gap-1.5 transition-colors"
+                                  >
+                                    <svg className="h-3 w-3" viewBox="0 0 24 24" fill="currentColor">
+                                      <path d="M12.206.793c.99 0 4.347.276 5.93 3.821.529 1.193.403 3.219.299 4.847l-.003.06c-.012.18-.022.345-.03.51.075.045.203.09.401.09.3-.016.659-.12 1.033-.301a.32.32 0 0 1 .114-.023c.193 0 .355.104.437.263.096.189.068.394-.075.545-.36.38-.858.716-1.441.983-.115.052-.184.114-.224.183.078.38.268.818.469 1.287.154.362.32.753.454 1.152.065.188.057.37-.028.51-.086.142-.236.24-.419.27-.169.028-.347.049-.523.07-.26.028-.508.055-.748.106-.096.02-.182.093-.269.228-.264.41-.57.855-.971 1.196-.315.27-.661.453-1.067.527-.242.044-.495.069-.753.088-.387.027-.774.055-1.14.147-.348.087-.665.243-.955.393-.274.142-.545.281-.825.4-.313.138-.635.187-.99.138-.225-.031-.45-.092-.664-.181-.166-.069-.331-.15-.5-.242-.172-.092-.344-.191-.542-.267-.172-.068-.354-.113-.54-.15-.127-.026-.258-.043-.389-.057-.237-.025-.476-.043-.72-.077-.243-.035-.434-.157-.516-.317-.092-.182-.077-.402.04-.614a8.04 8.04 0 0 1 .553-.952c.256-.408.532-.846.727-1.296.11-.252.128-.461.053-.609-.138-.266-.548-.393-.938-.515-.067-.02-.135-.042-.2-.064-.64-.207-1.297-.44-1.71-.885-.128-.139-.176-.323-.124-.483.053-.167.188-.29.385-.345.107-.03.213-.036.293-.02.296.063.634.195.972.329.316.125.64.254.953.321.143.031.269-.02.365-.076-.026-.149-.047-.32-.067-.497-.093-.752-.211-1.898-.08-2.67.377-2.268 1.574-3.783 3.538-4.488a5.68 5.68 0 0 1 1.851-.315"/>
+                                    </svg>
+                                    Snapchat
+                                    <ExternalLink className="h-3 w-3" />
+                                  </a>
+                                )}
+                                {urls.youtube && (
+                                  <a
+                                    href={urls.youtube}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="text-xs bg-red-600 text-white hover:bg-red-700 rounded-lg px-3 py-1.5 flex items-center gap-1.5 transition-colors"
+                                  >
+                                    <svg className="h-3 w-3" viewBox="0 0 24 24" fill="currentColor">
+                                      <path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/>
+                                    </svg>
+                                    YouTube
+                                    <ExternalLink className="h-3 w-3" />
+                                  </a>
+                                )}
                               </div>
-                            </div>
-                          </div>
-                        )}
+                            );
+                          } catch {
+                            // Old format - single URL
+                            return (
+                              <a
+                                href={invitation.proof_url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-sm text-primary hover:underline flex items-center gap-1"
+                              >
+                                <LinkIcon className="h-3 w-3" />
+                                عرض الرابط
+                              </a>
+                            );
+                          }
+                        })()}
                         
-                        {/* Show upload button if pending or rejected */}
-                        {(invitation.proof_status === 'pending_submission' || invitation.proof_status === 'rejected') && (
+                        {/* Show upload button if not uploaded yet */}
+                        {!invitation.proof_url && (
                           <Button
                             onClick={() => handleOpenProofUpload(invitation)}
                             className="w-full"
                             variant="outline"
                           >
                             <Upload className="h-4 w-4 me-2" />
-                            {invitation.proof_status === 'rejected' ? 'رفع رابط جديد' : 'رفع رابط المحتوى'}
+                            رفع رابط المحتوى
                           </Button>
                         )}
                         
-                        {/* Show message if submitted or approved */}
-                        {invitation.proof_status === 'submitted' && (
-                          <div className="text-sm text-blue-700 dark:text-blue-300 bg-blue-50 dark:bg-blue-900/20 rounded-lg p-3">
-                            تم رفع الرابط بنجاح. في انتظار مراجعة صاحب المطعم.
-                          </div>
-                        )}
-                        {invitation.proof_status === 'approved' && (
+                        {/* Show message if uploaded */}
+                        {invitation.proof_url && (
                           <div className="text-sm text-green-700 dark:text-green-300 bg-green-50 dark:bg-green-900/20 rounded-lg p-3 flex items-center gap-2">
                             <CheckCircle2 className="h-4 w-4" />
-                            تم اعتماد المحتوى بنجاح!
+                            تم رفع المحتوى بنجاح!
                           </div>
                         )}
                       </div>
@@ -958,7 +1179,7 @@ const InfluencerDashboard = () => {
 
         {/* Proof Upload Dialog */}
         <Dialog open={proofUploadDialogOpen} onOpenChange={setProofUploadDialogOpen}>
-          <DialogContent className="w-[95vw] sm:max-w-[500px] p-4 sm:p-6">
+          <DialogContent className="w-[95vw] sm:max-w-[600px] max-h-[90vh] overflow-y-auto p-4 sm:p-6">
             <DialogHeader>
               <DialogTitle>رفع رابط المحتوى</DialogTitle>
               <DialogDescription>
@@ -966,19 +1187,84 @@ const InfluencerDashboard = () => {
               </DialogDescription>
             </DialogHeader>
             <div className="space-y-4 py-4">
+              {/* TikTok - Required */}
               <div className="space-y-2">
-                <Label htmlFor="proof-url">رابط الفيديو *</Label>
+                <Label htmlFor="tiktok-url" className="flex items-center gap-2">
+                  <svg className="h-4 w-4" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M19.59 6.69a4.83 4.83 0 0 1-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 0 1-5.2 1.74 2.89 2.89 0 0 1 2.31-4.64 2.93 2.93 0 0 1 .88.13V9.4a6.84 6.84 0 0 0-1-.05A6.33 6.33 0 0 0 5 20.1a6.34 6.34 0 0 0 10.86-4.43v-7a8.16 8.16 0 0 0 4.77 1.52v-3.4a4.85 4.85 0 0 1-1-.1z"/>
+                  </svg>
+                  <span className="font-semibold">TikTok *</span>
+                  <span className="text-xs text-red-600">(مطلوب)</span>
+                </Label>
                 <Input
-                  id="proof-url"
+                  id="tiktok-url"
                   type="url"
                   placeholder="https://www.tiktok.com/@username/video/..."
-                  value={proofUrl}
-                  onChange={(e) => setProofUrl(e.target.value)}
+                  value={tiktokUrl}
+                  onChange={(e) => setTiktokUrl(e.target.value)}
                   disabled={submittingProof}
+                  className="border-2"
                 />
                 <p className="text-xs text-muted-foreground">
                   مثال: https://www.tiktok.com/@username/video/123456789
                 </p>
+              </div>
+
+              {/* Instagram - Optional */}
+              <div className="space-y-2">
+                <Label htmlFor="instagram-url" className="flex items-center gap-2">
+                  <svg className="h-4 w-4" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z"/>
+                  </svg>
+                  <span className="font-semibold">Instagram</span>
+                  <span className="text-xs text-muted-foreground">(اختياري)</span>
+                </Label>
+                <Input
+                  id="instagram-url"
+                  type="url"
+                  placeholder="https://www.instagram.com/p/..."
+                  value={instagramUrl}
+                  onChange={(e) => setInstagramUrl(e.target.value)}
+                  disabled={submittingProof}
+                />
+              </div>
+
+              {/* Snapchat - Optional */}
+              <div className="space-y-2">
+                <Label htmlFor="snapchat-url" className="flex items-center gap-2">
+                  <svg className="h-4 w-4 text-yellow-500" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M12.206.793c.99 0 4.347.276 5.93 3.821.529 1.193.403 3.219.299 4.847l-.003.06c-.012.18-.022.345-.03.51.075.045.203.09.401.09.3-.016.659-.12 1.033-.301a.32.32 0 0 1 .114-.023c.193 0 .355.104.437.263.096.189.068.394-.075.545-.36.38-.858.716-1.441.983-.115.052-.184.114-.224.183.078.38.268.818.469 1.287.154.362.32.753.454 1.152.065.188.057.37-.028.51-.086.142-.236.24-.419.27-.169.028-.347.049-.523.07-.26.028-.508.055-.748.106-.096.02-.182.093-.269.228-.264.41-.57.855-.971 1.196-.315.27-.661.453-1.067.527-.242.044-.495.069-.753.088-.387.027-.774.055-1.14.147-.348.087-.665.243-.955.393-.274.142-.545.281-.825.4-.313.138-.635.187-.99.138-.225-.031-.45-.092-.664-.181-.166-.069-.331-.15-.5-.242-.172-.092-.344-.191-.542-.267-.172-.068-.354-.113-.54-.15-.127-.026-.258-.043-.389-.057-.237-.025-.476-.043-.72-.077-.243-.035-.434-.157-.516-.317-.092-.182-.077-.402.04-.614a8.04 8.04 0 0 1 .553-.952c.256-.408.532-.846.727-1.296.11-.252.128-.461.053-.609-.138-.266-.548-.393-.938-.515-.067-.02-.135-.042-.2-.064-.64-.207-1.297-.44-1.71-.885-.128-.139-.176-.323-.124-.483.053-.167.188-.29.385-.345.107-.03.213-.036.293-.02.296.063.634.195.972.329.316.125.64.254.953.321.143.031.269-.02.365-.076-.026-.149-.047-.32-.067-.497-.093-.752-.211-1.898-.08-2.67.377-2.268 1.574-3.783 3.538-4.488a5.68 5.68 0 0 1 1.851-.315"/>
+                  </svg>
+                  <span className="font-semibold">Snapchat</span>
+                  <span className="text-xs text-muted-foreground">(اختياري)</span>
+                </Label>
+                <Input
+                  id="snapchat-url"
+                  type="url"
+                  placeholder="https://www.snapchat.com/..."
+                  value={snapchatUrl}
+                  onChange={(e) => setSnapchatUrl(e.target.value)}
+                  disabled={submittingProof}
+                />
+              </div>
+
+              {/* YouTube - Optional */}
+              <div className="space-y-2">
+                <Label htmlFor="youtube-url" className="flex items-center gap-2">
+                  <svg className="h-4 w-4 text-red-600" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/>
+                  </svg>
+                  <span className="font-semibold">YouTube</span>
+                  <span className="text-xs text-muted-foreground">(اختياري)</span>
+                </Label>
+                <Input
+                  id="youtube-url"
+                  type="url"
+                  placeholder="https://www.youtube.com/watch?v=..."
+                  value={youtubeUrl}
+                  onChange={(e) => setYoutubeUrl(e.target.value)}
+                  disabled={submittingProof}
+                />
               </div>
               
               {selectedInvitation?.scheduled_date && (
@@ -997,7 +1283,10 @@ const InfluencerDashboard = () => {
                 variant="outline"
                 onClick={() => {
                   setProofUploadDialogOpen(false);
-                  setProofUrl('');
+                  setTiktokUrl('');
+                  setInstagramUrl('');
+                  setSnapchatUrl('');
+                  setYoutubeUrl('');
                 }}
                 className="flex-1"
                 disabled={submittingProof}
@@ -1007,7 +1296,7 @@ const InfluencerDashboard = () => {
               <Button
                 onClick={handleSubmitProof}
                 className="flex-1"
-                disabled={submittingProof || !proofUrl.trim()}
+                disabled={submittingProof || !tiktokUrl.trim()}
               >
                 {submittingProof ? 'جاري الحفظ...' : 'حفظ'}
               </Button>
@@ -1080,6 +1369,21 @@ const InfluencerDashboard = () => {
                             month: 'long',
                             day: 'numeric'
                           })}
+                        </p>
+                      </div>
+                    </div>
+                  </Card>
+                )}
+
+                {/* Preferred Visit Time */}
+                {selectedInvitation.campaigns.preferred_visit_time && (
+                  <Card className="p-4 bg-gradient-to-br from-blue-50 to-blue-100/50 dark:from-blue-900/20 dark:to-blue-900/10 border-blue-200 dark:border-blue-800">
+                    <div className="flex items-center gap-3">
+                      <Clock className="h-5 w-5 text-blue-600" />
+                      <div>
+                        <p className="text-sm text-muted-foreground">الوقت المفضل للزيارة</p>
+                        <p className="font-semibold text-blue-700 dark:text-blue-300">
+                          {getVisitTimeLabel(selectedInvitation.campaigns.preferred_visit_time)}
                         </p>
                       </div>
                     </div>

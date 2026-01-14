@@ -334,7 +334,7 @@ const InfluencerDashboard = () => {
           : invitation.campaigns?.branches?.city || '';
         
         setAcceptedInvitationDetails({
-          title: invitation.campaigns?.title || invitation.campaigns?.owner_profiles?.business_name || '',
+          title: invitation.campaigns?.owner_profiles?.business_name || '',
           scheduledDate: invitation.scheduled_date,
           location,
         });
@@ -726,7 +726,7 @@ const InfluencerDashboard = () => {
                         <div className="flex-1 space-y-3 min-w-0">
                           <div className="flex items-center gap-2 flex-wrap">
                             <h4 className="font-semibold text-base sm:text-lg break-words">
-                              {invitation.campaigns?.title || invitation.campaigns?.owner_profiles?.business_name || 'حملة جديدة'}
+                              {invitation.campaigns?.owner_profiles?.business_name || 'اسم البراند غير متوفر'}
                             </h4>
                             {invitation.campaigns?.goal && (
                               <Badge variant="secondary" className="text-xs">{getGoalLabel(invitation.campaigns.goal)}</Badge>
@@ -949,7 +949,7 @@ const InfluencerDashboard = () => {
                         <div className="flex-1 space-y-3">
                           <div className="flex items-center gap-2 flex-wrap">
                             <h4 className="font-semibold">
-                              {invitation.campaigns?.title || invitation.campaigns?.owner_profiles?.business_name || 'حملة'}
+                              {invitation.campaigns?.owner_profiles?.business_name || 'اسم البراند غير متوفر'}
                             </h4>
                             <Badge variant="outline" className="bg-success/10 text-success border-success">
                               <CheckCircle2 className="h-3 w-3 me-1" />
@@ -1342,9 +1342,10 @@ const InfluencerDashboard = () => {
               <div className="space-y-6 py-4">
                 {/* Business Info */}
                 <div className="space-y-2">
+                  <p className="text-sm text-muted-foreground">اسم البراند</p>
                   <h3 className="font-semibold text-lg flex items-center gap-2">
                     <Briefcase className="h-5 w-5 text-primary" />
-                    {selectedInvitation.campaigns.owner_profiles?.business_name || selectedInvitation.campaigns.title}
+                    {selectedInvitation.campaigns.owner_profiles?.business_name || 'غير متوفر'}
                   </h3>
                   <div className="flex items-center gap-2 flex-wrap">
                     <Badge variant="secondary">

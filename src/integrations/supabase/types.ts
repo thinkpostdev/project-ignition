@@ -220,6 +220,10 @@ export type Database = {
           owner_id: string
           payment_approved: boolean | null
           payment_submitted_at: string | null
+          preferred_publish_time:
+            | Database["public"]["Enums"]["visit_time"]
+            | null
+          preferred_visit_time: Database["public"]["Enums"]["visit_time"] | null
           start_date: string | null
           status: Database["public"]["Enums"]["campaign_detailed_status"]
           strategy_summary: Json | null
@@ -245,6 +249,12 @@ export type Database = {
           owner_id: string
           payment_approved?: boolean | null
           payment_submitted_at?: string | null
+          preferred_publish_time?:
+            | Database["public"]["Enums"]["visit_time"]
+            | null
+          preferred_visit_time?:
+            | Database["public"]["Enums"]["visit_time"]
+            | null
           start_date?: string | null
           status?: Database["public"]["Enums"]["campaign_detailed_status"]
           strategy_summary?: Json | null
@@ -270,6 +280,12 @@ export type Database = {
           owner_id?: string
           payment_approved?: boolean | null
           payment_submitted_at?: string | null
+          preferred_publish_time?:
+            | Database["public"]["Enums"]["visit_time"]
+            | null
+          preferred_visit_time?:
+            | Database["public"]["Enums"]["visit_time"]
+            | null
           start_date?: string | null
           status?: Database["public"]["Enums"]["campaign_detailed_status"]
           strategy_summary?: Json | null
@@ -865,6 +881,7 @@ export type Database = {
       price_level: "cheap" | "moderate" | "expensive"
       proof_status: "pending_submission" | "submitted" | "approved" | "rejected"
       sender_type: "owner" | "influencer"
+      visit_time: "morning" | "afternoon" | "evening"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -1027,6 +1044,7 @@ export const Constants = {
       price_level: ["cheap", "moderate", "expensive"],
       proof_status: ["pending_submission", "submitted", "approved", "rejected"],
       sender_type: ["owner", "influencer"],
+      visit_time: ["morning", "afternoon", "evening"],
     },
   },
 } as const

@@ -57,9 +57,9 @@ export const AcceptanceConfirmationDialog = ({
     },
     {
       icon: DollarSign,
-      title: isRTL ? 'استلم المبلغ' : 'Get Paid',
+      title: isRTL ? 'استلم المبلغ (للتعاون المدفوع فقط)' : 'Get Paid (for paid only)',
       description: isRTL 
-        ? 'بعد اعتماد المحتوى من صاحب المطعم، يتم تحويل المبلغ خلال 24 ساعة'
+        ? ' بعد اعتماد المحتوى، يتم تحويل المبلغ خلال 24 ساعة للتعاون المدفوع'
         : 'After content approval by the restaurant owner, payment will be transferred within 24 hours',
       color: 'text-green-600',
       bgColor: 'bg-green-100 dark:bg-green-900/30',
@@ -143,8 +143,8 @@ export const AcceptanceConfirmationDialog = ({
           <p className="text-amber-800 dark:text-amber-200">
             <strong>{isRTL ? '⚡ هام:' : '⚡ Important:'}</strong>{' '}
             {isRTL 
-              ? 'يجب رفع رابط المحتوى خلال 48 ساعة من تاريخ الزيارة المحدد'
-              : 'Content link must be uploaded within 48 hours of the scheduled visit date'}
+              ? 'يجب رفع رابط المحتوى في نفس تاريخ الزيارة'
+              : 'Content link must be uploaded in same date of the visit'}
           </p>
         </div>
 

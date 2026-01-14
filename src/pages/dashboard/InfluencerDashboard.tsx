@@ -932,7 +932,7 @@ const InfluencerDashboard = () => {
                   <div className="w-5 h-5 rounded-full bg-green-100 dark:bg-green-900/50 flex items-center justify-center">
                     <DollarSign className="h-3 w-3 text-green-600" />
                   </div>
-                  <span>استلم المبلغ خلال 24 ساعة كحد أقصى</span>
+                  <span>استلم المبلغ خلال 24 ساعة كحد أقصى (للتعاون المدفوع)</span>
                 </div>
               </div>
             </div>

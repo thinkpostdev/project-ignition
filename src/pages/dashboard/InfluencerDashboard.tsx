@@ -725,7 +725,7 @@ const InfluencerDashboard = () => {
                       <div className="flex items-start justify-between gap-2 sm:gap-4">
                         <div className="flex-1 space-y-3 min-w-0">
                           <div className="flex items-center gap-2 flex-wrap">
-                            <h4 className="font-semibold text-base sm:text-lg break-words">
+                            <h4 className="font-bold text-base sm:text-lg break-words">
                               {invitation.campaigns?.owner_profiles?.business_name || 'اسم البراند غير متوفر'}
                             </h4>
                             {invitation.campaigns?.goal && (

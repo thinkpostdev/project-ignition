@@ -2,7 +2,7 @@ import { AdminLayout } from '@/components/admin/AdminLayout';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { useNavigate } from 'react-router-dom';
-import { Users, Megaphone, Code, DollarSign } from 'lucide-react';
+import { Users, Megaphone, Code, DollarSign, Building2 } from 'lucide-react';
 
 export default function AdminDashboard() {
   const navigate = useNavigate();
@@ -43,6 +43,15 @@ export default function AdminDashboard() {
       icon: Code,
       path: '/admin/developer-tracking',
       color: 'bg-purple-500',
+    },
+    {
+      title: 'Owners Management',
+      titleAr: 'إدارة أصحاب المطاعم',
+      description: 'Manage owner accounts and service fees',
+      descriptionAr: 'إدارة حسابات الملاك ونسب العمولات',
+      icon: Building2,
+      path: '/admin/owners',
+      color: 'bg-orange-500',
     },
   ];
 

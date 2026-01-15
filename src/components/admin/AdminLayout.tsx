@@ -9,7 +9,8 @@ import {
   LogOut,
   Menu,
   LayoutDashboard,
-  DollarSign
+  DollarSign,
+  Building2
 } from 'lucide-react';
 import { useState } from 'react';
 import { cn } from '@/lib/utils';
@@ -28,6 +29,11 @@ const navItems = [
     title: 'Influencers',
     href: '/admin/influencers',
     icon: Users,
+  },
+  {
+    title: 'Owners',
+    href: '/admin/owners',
+    icon: Building2,
   },
   {
     title: 'Campaigns',

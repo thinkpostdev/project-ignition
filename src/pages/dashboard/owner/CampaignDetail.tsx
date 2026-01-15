@@ -77,6 +77,7 @@ interface Campaign {
   owner_profiles?: {
     business_name: string;
     main_type: string | null;
+    service_fee_percentage: number | null;
   } | null;
   branches?: {
     city: string;
@@ -135,13 +136,16 @@ const CampaignDetail = ({
   const [loadingInfluencerDetails, setLoadingInfluencerDetails] = useState(false);
   const [deletingSuggestionId, setDeletingSuggestionId] = useState<string | null>(null);
 
-  // Calculate actual payment amount (sum of pending influencers' prices + 20% service fee)
+  // Get the owner's service fee percentage (default to 20% if not set)
+  const serviceFeePercentage = campaign?.owner_profiles?.service_fee_percentage ?? 0.20;
+
+  // Calculate actual payment amount (sum of pending influencers' prices + service fee)
   const actualPaymentAmount = useMemo(() => {
     const pendingSuggestions = suggestions.filter(s => !s.invitation_status);
     const totalCost = pendingSuggestions.reduce((sum, s) => sum + (s.min_price || 0), 0);
-    const serviceFee = totalCost * 0.20; // 20% service fee
+    const serviceFee = totalCost * serviceFeePercentage;
     return totalCost + serviceFee;
-  }, [suggestions]);
+  }, [suggestions, serviceFeePercentage]);
 
   // Calculate influencers cost (without service fee) for breakdown display
   const influencersCost = useMemo(() => {
@@ -242,7 +246,7 @@ const CampaignDetail = ({
       // Fetch owner profile separately (no FK relationship with campaigns)
       const { data: ownerProfile } = await supabase
         .from('owner_profiles')
-        .select('business_name, main_type')
+        .select('business_name, main_type, service_fee_percentage')
         .eq('user_id', data.owner_id)
         .single();
       
@@ -1357,8 +1361,8 @@ const CampaignDetail = ({
                     <span className="font-semibold">{influencersCost.toLocaleString()} ر.س</span>
                   </div>
                   <div className="flex justify-between items-center text-sm opacity-90">
-                    <span>رسوم الخدمة (20%):</span>
-                    <span className="font-semibold">{(influencersCost * 0.20).toLocaleString()} ر.س</span>
+                    <span>رسوم الخدمة ({Math.round(serviceFeePercentage * 100)}%):</span>
+                    <span className="font-semibold">{(influencersCost * serviceFeePercentage).toLocaleString()} ر.س</span>
                   </div>
                 </div>
               </div>

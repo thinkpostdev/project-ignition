@@ -554,6 +554,7 @@ Deno.serve(async (req: Request) => {
         goal,
         start_date,
         duration_days,
+        owner_id,
         branches (
           id,
           city,
@@ -573,6 +574,20 @@ Deno.serve(async (req: Request) => {
     }
 
     console.log("[HANDLER] Campaign fetched:", JSON.stringify(campaign, null, 2));
+
+    // Fetch owner's service fee percentage
+    const { data: ownerProfile, error: ownerError } = await supabase
+      .from("owner_profiles")
+      .select("service_fee_percentage")
+      .eq("user_id", campaign.owner_id)
+      .single();
+
+    if (ownerError) {
+      console.warn("[HANDLER] Could not fetch owner profile, using default fee:", ownerError);
+    }
+
+    const serviceFeePercentage = ownerProfile?.service_fee_percentage ?? 0.20;
+    console.log(`[HANDLER] Owner service fee percentage: ${serviceFeePercentage * 100}%`);
 
     const branchCity = (campaign.branches as any)?.city || 'الرياض';
     const campaignBudget = campaign.budget || 0;
@@ -653,11 +668,11 @@ Deno.serve(async (req: Request) => {
       campaignDurationDays
     );
 
-    // Calculate budget summary
+    // Calculate budget summary with owner's service fee percentage
     const paidCost = matchedInfluencers
       .filter(inf => inf.computed_type_label === 'Paid')
       .reduce((sum, inf) => sum + (inf.min_price || 0), 0);
-    const serviceFee = Math.round(paidCost * 0.15);
+    const serviceFee = Math.round(paidCost * serviceFeePercentage);
     const totalWithFee = paidCost + serviceFee;
 
     const budgetSummary = {
@@ -665,6 +680,7 @@ Deno.serve(async (req: Request) => {
       allocated_budget: paidCost,
       remaining_budget: campaignBudget - paidCost,
       service_fee: serviceFee,
+      service_fee_percentage: serviceFeePercentage,
       total_with_fee: totalWithFee,
     };
 

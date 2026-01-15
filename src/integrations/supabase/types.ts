@@ -644,6 +644,7 @@ export type Database = {
           logo_url: string | null
           main_type: Database["public"]["Enums"]["main_type"] | null
           price_level: Database["public"]["Enums"]["price_level"] | null
+          service_fee_percentage: number
           snapchat_username: string | null
           sub_category: string | null
           target_audience: string | null
@@ -664,6 +665,7 @@ export type Database = {
           logo_url?: string | null
           main_type?: Database["public"]["Enums"]["main_type"] | null
           price_level?: Database["public"]["Enums"]["price_level"] | null
+          service_fee_percentage?: number
           snapchat_username?: string | null
           sub_category?: string | null
           target_audience?: string | null
@@ -684,6 +686,7 @@ export type Database = {
           logo_url?: string | null
           main_type?: Database["public"]["Enums"]["main_type"] | null
           price_level?: Database["public"]["Enums"]["price_level"] | null
+          service_fee_percentage?: number
           snapchat_username?: string | null
           sub_category?: string | null
           target_audience?: string | null

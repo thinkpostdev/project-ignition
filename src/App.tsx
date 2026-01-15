@@ -27,6 +27,7 @@ import CampaignsManagement from './pages/admin/CampaignsManagement';
 import AdminCampaignDetail from './pages/admin/AdminCampaignDetail';
 import DeveloperTracking from './pages/admin/DeveloperTracking';
 import FinancialManagement from './pages/admin/FinancialManagement';
+import OwnersManagement from './pages/admin/OwnersManagement';
 
 const queryClient = new QueryClient();
 
@@ -139,6 +140,14 @@ const App = () => (
               element={
                 <AdminRoute>
                   <FinancialManagement />
+                </AdminRoute>
+              } 
+            />
+            <Route 
+              path="/admin/owners" 
+              element={
+                <AdminRoute>
+                  <OwnersManagement />
                 </AdminRoute>
               } 
             />

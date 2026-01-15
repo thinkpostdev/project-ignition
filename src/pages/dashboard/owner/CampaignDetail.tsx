@@ -1353,8 +1353,18 @@ const CampaignDetail = ({
               {/* Payment Amount - Prominent Display */}
               <div className="bg-gradient-to-br from-primary to-secondary rounded-xl p-6 text-white text-center shadow-lg">
                 <p className="text-sm opacity-90 mb-2">المبلغ المطلوب تحويله</p>
+                {serviceFeePercentage < 0.20 && (
+                  <p className="text-2xl line-through opacity-60 mb-0">
+                    {(influencersCost + influencersCost * 0.20).toLocaleString()}
+                  </p>
+                )}
                 <p className="text-5xl font-bold mb-1">{actualPaymentAmount.toLocaleString()}</p>
                 <p className="text-xl">ريال سعودي</p>
+                {serviceFeePercentage < 0.20 && (
+                  <div className="mt-2 inline-block bg-white/20 px-3 py-1 rounded-full text-sm">
+                    خصم {Math.round((0.20 - serviceFeePercentage) * 100)}% على رسوم الخدمة
+                  </div>
+                )}
                 <div className="mt-4 pt-4 border-t border-white/20 space-y-2">
                   <div className="flex justify-between items-center text-sm opacity-90">
                     <span>تكلفة المؤثرين ({suggestions.filter(s => !s.invitation_status).length} مؤثر):</span>

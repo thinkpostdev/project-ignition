@@ -1362,7 +1362,7 @@ const CampaignDetail = ({
                 <p className="text-xl">ريال سعودي</p>
                 {serviceFeePercentage < 0.20 && (
                   <div className="mt-2 inline-block bg-white/20 px-3 py-1 rounded-full text-sm">
-                    خصم {Math.round((0.20 - serviceFeePercentage) * 100)}% على رسوم الخدمة
+                    خصم {Math.round(((0.20 - serviceFeePercentage) / 0.20) * 100)}% على رسوم الخدمة
                   </div>
                 )}
                 <div className="mt-4 pt-4 border-t border-white/20 space-y-2">
@@ -1370,10 +1370,23 @@ const CampaignDetail = ({
                     <span>تكلفة المؤثرين ({suggestions.filter(s => !s.invitation_status).length} مؤثر):</span>
                     <span className="font-semibold">{influencersCost.toLocaleString()} ر.س</span>
                   </div>
-                  <div className="flex justify-between items-center text-sm opacity-90">
-                    <span>رسوم الخدمة ({Math.round(serviceFeePercentage * 100)}%):</span>
-                    <span className="font-semibold">{(influencersCost * serviceFeePercentage).toLocaleString()} ر.س</span>
-                  </div>
+                  {serviceFeePercentage < 0.20 ? (
+                    <>
+                      <div className="flex justify-between items-center text-sm opacity-60">
+                        <span>رسوم الخدمة (20%):</span>
+                        <span className="font-semibold line-through">{(influencersCost * 0.20).toLocaleString()} ر.س</span>
+                      </div>
+                      <div className="flex justify-between items-center text-sm opacity-90">
+                        <span>رسوم الخدمة ({Math.round(serviceFeePercentage * 100)}%):</span>
+                        <span className="font-semibold">{(influencersCost * serviceFeePercentage).toLocaleString()} ر.س</span>
+                      </div>
+                    </>
+                  ) : (
+                    <div className="flex justify-between items-center text-sm opacity-90">
+                      <span>رسوم الخدمة ({Math.round(serviceFeePercentage * 100)}%):</span>
+                      <span className="font-semibold">{(influencersCost * serviceFeePercentage).toLocaleString()} ر.س</span>
+                    </div>
+                  )}
                 </div>
               </div>
 

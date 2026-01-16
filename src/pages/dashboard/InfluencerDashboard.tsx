@@ -41,6 +41,7 @@ interface Invitation {
     goal: string | null;
     goal_details: string | null;
     content_requirements: string | null;
+    influencer_instructions: string | null;
     preferred_visit_time: string | null;
     preferred_publish_time: string | null;
     owner_id: string | null;
@@ -213,6 +214,7 @@ const InfluencerDashboard = () => {
             goal,
             goal_details,
             content_requirements,
+            influencer_instructions,
             preferred_visit_time,
             preferred_publish_time,
             owner_id,
@@ -519,6 +521,7 @@ const InfluencerDashboard = () => {
       morning: 'صباحاً (7 صباحاً - 12 ظهراً)',
       afternoon: 'ظهراً (1 ظهراً - 5 مساءً)',
       evening: 'مساءً (6 مساءً - 12 منتصف الليل)',
+      influencer_choice: 'حسب ما تراه مناسبًا',
     };
     return labels[visitTime] || visitTime;
   };
@@ -746,28 +749,15 @@ const InfluencerDashboard = () => {
                             </Card>
                           )}
                           
-                          {/* Goal Details */}
-                          {invitation.campaigns?.goal_details && (
-                            <Card className="p-3 bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800">
+                          {/* Influencer Instructions */}
+                          {invitation.campaigns?.influencer_instructions && (
+                            <Card className="p-3 bg-gradient-to-br from-primary/10 to-secondary/10 border-primary/20">
                               <h5 className="text-xs font-semibold mb-1 flex items-center gap-1">
-                                <Info className="h-3 w-3" />
-                                تفاصيل الهدف:
+                                <FileText className="h-3 w-3 text-primary" />
+                                تعليمات للمؤثر:
                               </h5>
-                              <p className="text-xs leading-relaxed whitespace-pre-wrap text-blue-900 dark:text-blue-100">
-                                {invitation.campaigns.goal_details}
-                              </p>
-                            </Card>
-                          )}
-                          
-                          {/* Content Requirements */}
-                          {invitation.campaigns?.content_requirements && (
-                            <Card className="p-3 bg-purple-50 dark:bg-purple-900/20 border-purple-200 dark:border-purple-800">
-                              <h5 className="text-xs font-semibold mb-1 flex items-center gap-1">
-                                <Video className="h-3 w-3" />
-                                متطلبات المحتوى:
-                              </h5>
-                              <p className="text-xs leading-relaxed whitespace-pre-wrap text-purple-900 dark:text-purple-100">
-                                {invitation.campaigns.content_requirements}
+                              <p className="text-xs leading-relaxed whitespace-pre-wrap font-medium">
+                                {invitation.campaigns.influencer_instructions}
                               </p>
                             </Card>
                           )}
@@ -971,28 +961,15 @@ const InfluencerDashboard = () => {
                             </Card>
                           )}
                           
-                          {/* Goal Details */}
-                          {invitation.campaigns?.goal_details && (
-                            <Card className="p-3 bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800">
+                          {/* Influencer Instructions */}
+                          {invitation.campaigns?.influencer_instructions && (
+                            <Card className="p-3 bg-gradient-to-br from-primary/10 to-secondary/10 border-primary/20">
                               <h5 className="text-xs font-semibold mb-1 flex items-center gap-1">
-                                <Info className="h-3 w-3" />
-                                تفاصيل الهدف:
+                                <FileText className="h-3 w-3 text-primary" />
+                                تعليمات للمؤثر:
                               </h5>
-                              <p className="text-xs leading-relaxed whitespace-pre-wrap text-blue-900 dark:text-blue-100">
-                                {invitation.campaigns.goal_details}
-                              </p>
-                            </Card>
-                          )}
-                          
-                          {/* Content Requirements */}
-                          {invitation.campaigns?.content_requirements && (
-                            <Card className="p-3 bg-purple-50 dark:bg-purple-900/20 border-purple-200 dark:border-purple-800">
-                              <h5 className="text-xs font-semibold mb-1 flex items-center gap-1">
-                                <Video className="h-3 w-3" />
-                                متطلبات المحتوى:
-                              </h5>
-                              <p className="text-xs leading-relaxed whitespace-pre-wrap text-purple-900 dark:text-purple-100">
-                                {invitation.campaigns.content_requirements}
+                              <p className="text-xs leading-relaxed whitespace-pre-wrap font-medium">
+                                {invitation.campaigns.influencer_instructions}
                               </p>
                             </Card>
                           )}
@@ -1485,31 +1462,16 @@ const InfluencerDashboard = () => {
                   </div>
                 )}
 
-                {/* Goal Details */}
-                {selectedInvitation.campaigns.goal_details && (
+                {/* Influencer Instructions */}
+                {selectedInvitation.campaigns.influencer_instructions && (
                   <div className="space-y-2">
                     <h4 className="font-semibold flex items-center gap-2">
-                      <Info className="h-4 w-4 text-primary" />
-                      تفاصيل الهدف
+                      <FileText className="h-4 w-4 text-primary" />
+                      تعليمات للمؤثر
                     </h4>
-                    <Card className="p-4 bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800">
-                      <p className="text-sm leading-relaxed whitespace-pre-wrap text-blue-900 dark:text-blue-100">
-                        {selectedInvitation.campaigns.goal_details}
-                      </p>
-                    </Card>
-                  </div>
-                )}
-
-                {/* Content Requirements */}
-                {selectedInvitation.campaigns.content_requirements && (
-                  <div className="space-y-2">
-                    <h4 className="font-semibold flex items-center gap-2">
-                      <FileText className="h-4 w-4 text-amber-600" />
-                      متطلبات المحتوى
-                    </h4>
-                    <Card className="p-4 bg-amber-50 dark:bg-amber-900/20 border-amber-200 dark:border-amber-800">
-                      <p className="text-sm leading-relaxed whitespace-pre-wrap text-amber-900 dark:text-amber-100">
-                        {selectedInvitation.campaigns.content_requirements}
+                    <Card className="p-4 bg-gradient-to-br from-primary/10 to-secondary/10 border-primary/20">
+                      <p className="text-sm leading-relaxed whitespace-pre-wrap font-medium">
+                        {selectedInvitation.campaigns.influencer_instructions}
                       </p>
                     </Card>
                   </div>

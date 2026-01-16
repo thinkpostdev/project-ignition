@@ -43,20 +43,10 @@ const step1Schema = z.object({
 const step2Schema = z.object({
   primary_platforms: z.array(z.string()).min(1, 'اختر منصة واحدة على الأقل'),
   instagram_handle: z.string().optional(),
-  tiktok_username: z.string().optional(),
+  tiktok_username: z.string().min(1, 'حساب TikTok مطلوب'),
   snapchat_username: z.string().optional(),
   categories: z.array(z.string()).min(1, 'اختر تصنيف واحد على الأقل'),
   content_type: z.string().optional(),
-}).refine((data) => {
-  // Ensure at least one account detail is provided
-  const hasInstagram = data.instagram_handle && data.instagram_handle.length > 0;
-  const hasTiktok = data.tiktok_username && data.tiktok_username.length > 0;
-  const hasSnapchat = data.snapchat_username && data.snapchat_username.length > 0;
-  
-  return hasInstagram || hasTiktok || hasSnapchat;
-}, {
-  message: 'يجب إدخال معلومات حساب واحد على الأقل',
-  path: ['instagram_handle'],
 });
 
 const step3Schema = z.object({
@@ -362,12 +352,16 @@ const InfluencerOnboarding = () => {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="tiktok_username">اسم المستخدم في تيك توك</Label>
+                <Label htmlFor="tiktok_username">اسم المستخدم في تيك توك *</Label>
                 <Input
                   id="tiktok_username"
                   {...form2.register('tiktok_username')}
                   placeholder="@username"
+                  required
                 />
+                {form2.formState.errors.tiktok_username && (
+                  <p className="text-sm text-destructive">{form2.formState.errors.tiktok_username.message}</p>
+                )}
               </div>
 
               <div className="space-y-2">

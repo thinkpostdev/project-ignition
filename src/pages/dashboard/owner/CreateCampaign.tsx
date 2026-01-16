@@ -25,10 +25,9 @@ const campaignSchema = z.object({
   title: z.string().trim().min(5, 'العنوان يجب أن يكون 5 أحرف على الأقل').max(200, 'العنوان طويل جداً'),
   branch_id: z.string().min(1, 'يجب اختيار فرع للحملة'),
   goal: z.enum(['opening', 'promotions', 'new_products', 'other']),
-  goal_details: z.string().trim().max(500).optional(),
-  content_requirements: z.string().trim().max(1000).optional(),
-  preferred_visit_time: z.enum(['morning', 'afternoon', 'evening']).optional(),
-  preferred_publish_time: z.enum(['morning', 'afternoon', 'evening']).optional(),
+  influencer_instructions: z.string().trim().min(10, 'التعليمات يجب أن تكون 10 أحرف على الأقل').max(1000, 'التعليمات طويلة جداً'),
+  preferred_visit_time: z.enum(['morning', 'afternoon', 'evening'], { required_error: 'يجب اختيار وقت الزيارة' }),
+  preferred_publish_time: z.enum(['morning', 'afternoon', 'evening', 'influencer_choice'], { required_error: 'يجب اختيار وقت النشر' }),
   budget: z.number().min(500, 'الميزانية يجب أن تكون 500 ريال على الأقل'),
   start_date: z.date({
     required_error: 'يجب اختيار تاريخ بدء الحملة',
@@ -56,8 +55,7 @@ const CreateCampaign = () => {
     resolver: zodResolver(campaignSchema),
     defaultValues: {
       title: '',
-      goal_details: '',
-      content_requirements: '',
+      influencer_instructions: '',
       duration_days: 10, // Default duration
       add_bonus_hospitality: false,
     },
@@ -113,6 +111,16 @@ const CreateCampaign = () => {
     
     setLoading(true);
     try {
+      // Debug: Log form data
+      console.log('Form Data:', {
+        title: data.title,
+        goal: data.goal,
+        influencer_instructions: data.influencer_instructions,
+        preferred_visit_time: data.preferred_visit_time,
+        preferred_publish_time: data.preferred_publish_time,
+        budget: data.budget,
+      });
+
       // Step 1: Create the campaign
       const { data: campaign, error } = await supabase
         .from('campaigns')
@@ -122,10 +130,9 @@ const CreateCampaign = () => {
           description: null,
           branch_id: data.branch_id,
           goal: data.goal,
-          goal_details: data.goal_details || null,
-          content_requirements: data.content_requirements || null,
-          preferred_visit_time: data.preferred_visit_time || null,
-          preferred_publish_time: data.preferred_publish_time || null,
+          influencer_instructions: data.influencer_instructions,
+          preferred_visit_time: data.preferred_visit_time,
+          preferred_publish_time: data.preferred_publish_time,
           budget: data.budget,
           start_date: data.start_date ? format(data.start_date, 'yyyy-MM-dd') : null,
           duration_days: data.duration_days,
@@ -138,7 +145,10 @@ const CreateCampaign = () => {
         .select()
         .single();
 
-      if (error) throw error;
+      if (error) {
+        console.error('Supabase Error:', error);
+        throw error;
+      }
 
       toast.success('تم إنشاء الحملة بنجاح!');
       
@@ -235,7 +245,7 @@ const CreateCampaign = () => {
     
     if (step === 1) {
       // Include branch_id in validation - it's required for the matching algorithm
-      fieldsToValidate = ['title', 'branch_id', 'goal', 'goal_details'];
+      fieldsToValidate = ['title', 'branch_id', 'goal', 'influencer_instructions', 'preferred_visit_time', 'preferred_publish_time'];
     } else if (step === 2) {
       // Validate budget, start_date, and duration_days before submission
       fieldsToValidate = ['budget', 'start_date', 'duration_days'];
@@ -389,32 +399,25 @@ const CreateCampaign = () => {
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="goal_details">تفاصيل الهدف (اختياري)</Label>
+                  <Label htmlFor="influencer_instructions">تعليمات للمؤثر *</Label>
                   <Textarea
-                    id="goal_details"
-                    rows={3}
-                    placeholder="اكتب تفاصيل اضافية عن هدف الحملة مثل : تفاصيل المنتج , ما يجب التركيز عليه في الحملة ..."
-                    {...form.register('goal_details')}
+                    id="influencer_instructions"
+                    rows={5}
+                    placeholder="اكتب ماذا تريد من المؤثر التركيز عليه في هذه الحملة، وماهي الرسالة المراد التي تريد أن تصل للناس"
+                    {...form.register('influencer_instructions')}
                   />
+                  {form.formState.errors.influencer_instructions && (
+                    <p className="text-sm text-destructive">{form.formState.errors.influencer_instructions.message}</p>
+                  )}
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="content_requirements">متطلبات المحتوى (اختياري)</Label>
-                  <Textarea
-                    id="content_requirements"
-                    rows={4}
-                    placeholder="اكتب اذا كان هناك متطلبات معينة للمحتوى مثل فكرة المحتوى , هاشتاقات ,..."
-                    {...form.register('content_requirements')}
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="preferred_visit_time">ما هو الوقت المفضل لزيارة المؤثرين؟ (اختياري)</Label>
+                  <Label htmlFor="preferred_visit_time">ما هو الوقت المفضل لزيارة المؤثرين؟ *</Label>
                   <Select 
-                    onValueChange={(value) => form.setValue('preferred_visit_time', value as any)}
+                    onValueChange={(value) => form.setValue('preferred_visit_time', value as any, { shouldValidate: true })}
                     value={form.watch('preferred_visit_time')}
                   >
-                    <SelectTrigger>
+                    <SelectTrigger className={form.formState.errors.preferred_visit_time ? 'border-destructive' : ''}>
                       <SelectValue placeholder="اختر الوقت المناسب للزيارة" />
                     </SelectTrigger>
                     <SelectContent>
@@ -423,26 +426,33 @@ const CreateCampaign = () => {
                       <SelectItem value="evening">مساءً (6 مساءً - 12 منتصف الليل)</SelectItem>
                     </SelectContent>
                   </Select>
+                  {form.formState.errors.preferred_visit_time && (
+                    <p className="text-sm text-destructive">{form.formState.errors.preferred_visit_time.message}</p>
+                  )}
                   <p className="text-xs text-muted-foreground">
                     سيتم إرسال هذه المعلومة للمؤثرين عند قبولهم للحملة
                   </p>
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="preferred_publish_time">ما هو الوقت المفضل لنشر المحتوى؟ (اختياري)</Label>
+                  <Label htmlFor="preferred_publish_time">ما هو الوقت المفضل لنشر المحتوى؟ *</Label>
                   <Select 
-                    onValueChange={(value) => form.setValue('preferred_publish_time', value as any)}
+                    onValueChange={(value) => form.setValue('preferred_publish_time', value as any, { shouldValidate: true })}
                     value={form.watch('preferred_publish_time')}
                   >
-                    <SelectTrigger>
+                    <SelectTrigger className={form.formState.errors.preferred_publish_time ? 'border-destructive' : ''}>
                       <SelectValue placeholder="اختر الوقت المناسب للنشر" />
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="morning">صباحاً (7 صباحاً - 12 ظهراً)</SelectItem>
                       <SelectItem value="afternoon">ظهراً (1 ظهراً - 5 مساءً)</SelectItem>
                       <SelectItem value="evening">مساءً (6 مساءً - 12 منتصف الليل)</SelectItem>
+                      <SelectItem value="influencer_choice">حسب ما يراه المؤثر مناسبًا</SelectItem>
                     </SelectContent>
                   </Select>
+                  {form.formState.errors.preferred_publish_time && (
+                    <p className="text-sm text-destructive">{form.formState.errors.preferred_publish_time.message}</p>
+                  )}
                   <p className="text-xs text-muted-foreground">
                     حدد الوقت الذي تفضل أن ينشر فيه المؤثر المحتوى
                   </p>

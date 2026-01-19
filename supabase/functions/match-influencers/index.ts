@@ -28,6 +28,15 @@ const MATCHING_CONFIG = {
   fallbackScorePenalty: 0.5,
   // Max influencers to consider in fallback mode
   fallbackLimit: 20,
+  // Workload factor settings - reduces score based on recent invitations
+  workloadFactor: {
+    // How many days to look back for pending invitations
+    lookbackDays: 30,
+    // Maximum penalty percentage (0.5 = 50% reduction at max workload)
+    maxPenalty: 0.5,
+    // Number of pending invitations to reach max penalty
+    maxInvitationsForFullPenalty: 5,
+  },
 } as const;
 
 /**
@@ -91,6 +100,8 @@ interface Influencer {
   primary_platforms: string[] | null;
   history_type: string | null;
   history_price_cat: string | null;
+  // Added for workload tracking
+  pending_invitations_count?: number;
 }
 
 interface ScoredInfluencer extends Influencer {
@@ -328,6 +339,21 @@ function determineTypeLabel(influencer: Influencer): 'Hospitality' | 'Paid' {
   return 'Paid';
 }
 
+/**
+ * Calculates workload penalty based on pending invitations.
+ * More pending invitations = higher penalty = lower final score.
+ * This ensures fair distribution of opportunities among influencers.
+ */
+function calculateWorkloadPenalty(pendingCount: number): number {
+  const { maxPenalty, maxInvitationsForFullPenalty } = MATCHING_CONFIG.workloadFactor;
+  
+  if (pendingCount <= 0) return 0;
+  
+  // Linear scale: penalty grows with pending invitations up to max
+  const penaltyRatio = Math.min(pendingCount / maxInvitationsForFullPenalty, 1);
+  return penaltyRatio * maxPenalty;
+}
+
 function calculateMatchScore(influencer: Influencer, maxViews: number): number {
   let score = 0;
   
@@ -354,6 +380,16 @@ function calculateMatchScore(influencer: Influencer, maxViews: number): number {
   const avgViews = getAvgViewsValue(influencer.avg_views_tiktok, influencer.avg_views_val);
   if (maxViews > 0) {
     score += (avgViews / maxViews) * MATCHING_CONFIG.maxReachScore;
+  }
+  
+  // Apply workload penalty to distribute opportunities fairly
+  const pendingCount = influencer.pending_invitations_count || 0;
+  const workloadPenalty = calculateWorkloadPenalty(pendingCount);
+  
+  if (workloadPenalty > 0) {
+    const reduction = score * workloadPenalty;
+    score = score - reduction;
+    console.log(`[WORKLOAD] ${influencer.display_name}: pending=${pendingCount}, penalty=${(workloadPenalty * 100).toFixed(0)}%, score reduced by ${reduction.toFixed(1)}`);
   }
   
   return Math.round(score * 100) / 100;
@@ -627,7 +663,40 @@ Deno.serve(async (req: Request) => {
       throw new Error(`Failed to fetch influencers: ${influencersError.message}`);
     }
 
-    if (!influencers || influencers.length === 0) {
+    // Calculate the lookback date for pending invitations
+    const lookbackDate = new Date();
+    lookbackDate.setDate(lookbackDate.getDate() - MATCHING_CONFIG.workloadFactor.lookbackDays);
+    const lookbackDateStr = lookbackDate.toISOString();
+
+    // Fetch pending invitations count for each influencer (for workload balancing)
+    const { data: pendingInvitations, error: pendingError } = await supabase
+      .from("influencer_invitations")
+      .select("influencer_id")
+      .in("status", ["pending", "accepted"])
+      .gte("created_at", lookbackDateStr);
+
+    if (pendingError) {
+      console.warn("[HANDLER] Could not fetch pending invitations for workload calculation:", pendingError);
+    }
+
+    // Count pending invitations per influencer
+    const pendingCountMap = new Map<string, number>();
+    if (pendingInvitations) {
+      for (const inv of pendingInvitations) {
+        const count = pendingCountMap.get(inv.influencer_id) || 0;
+        pendingCountMap.set(inv.influencer_id, count + 1);
+      }
+    }
+
+    console.log(`[HANDLER] Workload data: ${pendingCountMap.size} influencers have pending/accepted invitations in last ${MATCHING_CONFIG.workloadFactor.lookbackDays} days`);
+
+    // Enrich influencers with pending count
+    const enrichedInfluencers = (influencers || []).map(inf => ({
+      ...inf,
+      pending_invitations_count: pendingCountMap.get(inf.id) || 0,
+    }));
+
+    if (enrichedInfluencers.length === 0) {
       console.warn("[HANDLER] No approved influencers found");
       return new Response(
         JSON.stringify({
@@ -648,14 +717,14 @@ Deno.serve(async (req: Request) => {
       );
     }
 
-    console.log(`[HANDLER] Found ${influencers.length} approved influencers`);
+    console.log(`[HANDLER] Found ${enrichedInfluencers.length} approved influencers`);
 
-    // Run matching algorithm
+    // Run matching algorithm with workload-aware influencers
     const matchedInfluencers = matchInfluencers(
       campaignBudget,
       branchCity,
       addBonusHospitality,
-      influencers as Influencer[]
+      enrichedInfluencers as Influencer[]
     );
 
     console.log(`[HANDLER] Matched ${matchedInfluencers.length} influencers`);

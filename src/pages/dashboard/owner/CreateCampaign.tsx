@@ -28,7 +28,7 @@ const campaignSchema = z.object({
   influencer_instructions: z.string().trim().min(10, 'التعليمات يجب أن تكون 10 أحرف على الأقل').max(1000, 'التعليمات طويلة جداً'),
   preferred_visit_time: z.enum(['morning', 'afternoon', 'evening'], { required_error: 'يجب اختيار وقت الزيارة' }),
   preferred_publish_time: z.enum(['morning', 'afternoon', 'evening', 'influencer_choice'], { required_error: 'يجب اختيار وقت النشر' }),
-  budget: z.number().min(500, 'الميزانية يجب أن تكون 500 ريال على الأقل'),
+  budget: z.number().min(1000, 'الميزانية يجب أن تكون 1000 ريال على الأقل'),
   start_date: z.date({
     required_error: 'يجب اختيار تاريخ بدء الحملة',
     invalid_type_error: 'يجب اختيار تاريخ صحيح',

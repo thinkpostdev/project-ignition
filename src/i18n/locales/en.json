@@ -22,13 +22,13 @@
     },
     "features": {
       "title": "Why Choose Us?",
+      "management": {
+        "title": "A Platform Designed for Restaurants and Cafes",
+        "description": "We built the platform specifically for restaurants and cafes to fit your needs and make launching campaigns easy"
+      },
       "matching": {
         "title": "Smart Matching",
         "description": "Advanced algorithm connects you with the right influencers for your restaurant"
-      },
-      "management": {
-        "title": "Complete Management",
-        "description": "Track campaigns, content, and payments from one place"
       },
       "payments": {
         "title": "Secure Payments",

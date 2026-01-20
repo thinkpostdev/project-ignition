@@ -547,7 +547,7 @@ const CreateCampaign = () => {
                       onCheckedChange={(checked) => form.setValue('add_bonus_hospitality', checked as boolean)}
                     />
                     <Label htmlFor="add_bonus_hospitality" className="font-normal cursor-pointer">
-                      إضافة حتى ٥ مؤثرين بالضيافة (بدون مقابل مالي)
+                      دعوة حتى ٥ صُنّاع محتوى لتجربة الزيارة (بدون أي التزام إعلاني)
                     </Label>
                   </div>
                   <p className="text-sm text-muted-foreground mr-6">

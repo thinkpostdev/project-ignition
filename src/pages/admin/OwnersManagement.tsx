@@ -371,7 +371,7 @@ export default function OwnersManagement() {
                       </div>
                     </TableCell>
                     <TableCell>
-                      {format(new Date(owner.created_at), 'MMM d, yyyy')}
+                      {format(new Date(owner.created_at), 'MMM d, yyyy h:mm a')}
                     </TableCell>
                   </TableRow>
                 ))

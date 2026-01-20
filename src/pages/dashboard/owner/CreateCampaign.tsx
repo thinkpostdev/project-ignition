@@ -542,16 +542,16 @@ const CreateCampaign = () => {
                 <div className="p-4 bg-muted/30 rounded-lg space-y-2">
                   <div className="flex items-start space-x-2 space-x-reverse">
                     <Checkbox
-                      id="invite_creators_experience"
-                      checked={form.watch('invite_creators_experience')}
+                      id="add_bonus_hospitality"
+                      checked={form.watch('add_bonus_hospitality')}
                       onCheckedChange={(checked) =>
-                        form.setValue('invite_creators_experience', checked as boolean)
+                        form.setValue('add_bonus_hospitality', checked as boolean)
                       }
                     />
 
                     <div className="space-y-1">
                       <Label
-                        htmlFor="invite_creators_experience"
+                        htmlFor="add_bonus_hospitality"
                         className="font-normal cursor-pointer"
                       >
                         دعوة حتى ٥ صُنّاع محتوى لتجربة الزيارة (بدون أي التزام إعلاني)
